@@ -29,7 +29,11 @@ export function AuthModal({ open, onClose, onSuccess }) {
   const [step, setStep]               = useState('choose');
   const [phone, setPhone]             = useState('');
   const [otp, setOtp]                 = useState(['','','','','','']);
-  const [name, setName]               = useState('');
+  const [nombre, setNombre]           = useState('');
+  const [apellido, setApellido]       = useState('');
+  const [anio, setAnio]               = useState('');
+  const [genero, setGenero]           = useState('');
+  const [condiciones, setCondiciones] = useState([]);
   const [error, setError]             = useState('');
   const [loading, setLoading]         = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
@@ -111,10 +115,36 @@ export function AuthModal({ open, onClose, onSuccess }) {
   }
 
   async function handleSaveProfile() {
-    const u = { ...userData, nombre: name.trim() || '' };
+    if (!nombre.trim()) { setError('El nombre es requerido.'); return; }
+    const anioNum = parseInt(anio);
+    if (anio && (anioNum < 1920 || anioNum > 2010)) { setError('Año de nacimiento inválido.'); return; }
+    setLoading(true);
+    const perfil = {
+      nombre: nombre.trim(),
+      apellido: apellido.trim() || null,
+      anio_nacimiento: anio ? anioNum : null,
+      genero: genero || null,
+      condiciones: condiciones.length > 0 ? condiciones : null,
+    };
+    try {
+      const res = await fetch('/api/update-profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userData?.id, ...perfil }),
+      });
+      await res.json();
+    } catch {}
+    const u = { ...userData, ...perfil };
     saveLocalUser(u);
     handleClose();
     onSuccess?.(u);
+    setLoading(false);
+  }
+
+  function toggleCondicion(c) {
+    setCondiciones(prev =>
+      prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]
+    );
   }
 
   function handleOtpChange(idx, val) {
@@ -198,12 +228,41 @@ export function AuthModal({ open, onClose, onSuccess }) {
         </>}
 
         {step === 'profile' && <>
-          <div style={{fontSize:44,textAlign:'center',marginBottom:8}}>✅</div>
-          <h2 style={title}>¡Todo listo!</h2>
-          <p style={subtitle}>¿Cómo quieres que te llamemos?</p>
-          <input style={nameInput} type="text" placeholder="Tu nombre (opcional)"
-            value={name} onChange={e => setName(e.target.value)}
-            onKeyDown={e => e.key==='Enter' && handleSaveProfile()} autoFocus/>
+          <div style={{fontSize:36,textAlign:'center',marginBottom:6}}>✅</div>
+          <h2 style={{...title,fontSize:20}}>Cuéntanos un poco sobre ti</h2>
+          <p style={{...subtitle,marginBottom:16}}>Para personalizar tu experiencia.</p>
+
+          <div style={{display:'flex',gap:8,marginBottom:10}}>
+            <input style={{...nameInput,marginBottom:0,flex:1}} type="text" placeholder="Nombre *"
+              value={nombre} onChange={e => setNombre(e.target.value)} autoFocus/>
+            <input style={{...nameInput,marginBottom:0,flex:1}} type="text" placeholder="Apellido"
+              value={apellido} onChange={e => setApellido(e.target.value)}/>
+          </div>
+
+          <input style={{...nameInput}} type="number" placeholder="Año de nacimiento (ej: 1978)"
+            min="1920" max="2010" value={anio} onChange={e => setAnio(e.target.value)}/>
+
+          <p style={{fontSize:12,color:'#6B7280',marginBottom:8,fontWeight:600}}>Género</p>
+          <div style={{display:'flex',gap:8,marginBottom:14}}>
+            {['Hombre','Mujer','Prefiero no decir'].map(g => (
+              <button key={g} onClick={() => setGenero(g === genero ? '' : g)}
+                style={{flex:1,padding:'9px 4px',borderRadius:10,border:`2px solid ${g===genero?'#0A7B5E':'#E5E7EB'}`,background:g===genero?'#E8F7F3':'#fff',color:g===genero?'#0A7B5E':'#6B7280',fontSize:12,fontWeight:600,cursor:'pointer'}}>
+                {g}
+              </button>
+            ))}
+          </div>
+
+          <p style={{fontSize:12,color:'#6B7280',marginBottom:8,fontWeight:600}}>Condición de salud (opcional)</p>
+          <div style={{display:'flex',flexWrap:'wrap',gap:8,marginBottom:16}}>
+            {['Diabetes','Hipertensión','Colesterol','Tiroides','Ninguna','Otra'].map(c => (
+              <button key={c} onClick={() => toggleCondicion(c)}
+                style={{padding:'7px 14px',borderRadius:20,border:`2px solid ${condiciones.includes(c)?'#0A7B5E':'#E5E7EB'}`,background:condiciones.includes(c)?'#E8F7F3':'#fff',color:condiciones.includes(c)?'#0A7B5E':'#6B7280',fontSize:13,fontWeight:600,cursor:'pointer'}}>
+                {c}
+              </button>
+            ))}
+          </div>
+
+          {error && <p style={errText}>{error}</p>}
           <button style={{...primaryBtn, opacity: loading ? 0.6:1}} onClick={handleSaveProfile} disabled={loading}>
             {loading ? 'Guardando…' : 'Entrar a MediSinas'}
           </button>
