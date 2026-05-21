@@ -119,6 +119,7 @@ export function AuthModal({ open, onClose, onSuccess }) {
     if (!apellido.trim()) { setError('El apellido es requerido.'); return; }
     const anioNum = parseInt(anio);
     if (!anio || anioNum < 1920 || anioNum > 2010) { setError('Ingresa un año de nacimiento válido (ej: 1978).'); return; }
+    if (!genero) { setError('Selecciona tu género.'); return; }
     setLoading(true);
     const perfil = {
       nombre: nombre.trim(),
@@ -239,7 +240,7 @@ export function AuthModal({ open, onClose, onSuccess }) {
           <input style={{...nameInput}} type="number" placeholder="Año de nacimiento * (ej: 1978)"
             min="1920" max="2010" value={anio} onChange={e => setAnio(e.target.value)}/>
 
-          <p style={{fontSize:12,color:'#6B7280',marginBottom:8,fontWeight:600}}>Género</p>
+          <p style={{fontSize:12,color:'#6B7280',marginBottom:8,fontWeight:600}}>Género *</p>
           <div style={{display:'flex',gap:8,marginBottom:14}}>
             {['Hombre','Mujer','Prefiero no decir'].map(g => (
               <button key={g} onClick={() => setGenero(g === genero ? '' : g)}
