@@ -4,6 +4,7 @@ import { UBIGEOS, getZona } from './ubigeos';
 import { getEcommerceUrl } from './farmacias';
 import { getHistorial, agregarAlHistorial, detectarSintoma, compartirWhatsApp, calcularDistancia, DISCLAIMER_SINTOMA, SINTOMAS } from './utils';
 import { AuthModal, AuthButton, useAuth } from './UserAuth';
+import { MisMedicamentosBtn, MisMedicamentosPanel, guardarMedicamento } from './MisMedicamentos';
 
 const GA_ID = 'G-MZ744SDY8T';
 function gtag(...args) { window.dataLayer = window.dataLayer || []; window.dataLayer.push(args); }
@@ -334,6 +335,8 @@ function MapSheet({ direccion, onClose, geoPos }) {
 export default function App() {
   const { user, signOut, signIn } = useAuth();
   const [authOpen, setAuthOpen] = useState(false);
+  const [mismedOpen, setMismedOpen] = useState(false);
+  const [savedIds, setSavedIds] = useState(new Set());
 
   const [query, setQuery] = useState('');
   const [queryUsuario, setQueryUsuario] = useState('');
@@ -440,6 +443,14 @@ export default function App() {
       setDistSel(mejorDist);
     }
   };
+
+  async function handleGuardarMed(variante) {
+    if (!user) { setAuthOpen(true); return; }
+    const result = await guardarMedicamento(user.id, variante);
+    if (result.success) {
+      setSavedIds(prev => new Set([...prev, `${variante.grupo}_${variante.codGrupoFF}_${variante.concent}`]));
+    }
+  }
 
   const departamentos = Object.keys(UBIGEOS);
   const provincias = depSel ? Object.keys(UBIGEOS[depSel]?.provincias || {}) : [];
@@ -737,6 +748,7 @@ export default function App() {
           </nav>
           <div className="header-right" style={{display:'flex',alignItems:'center',gap:'14px'}}>
             <div className="live-badge"><div className="live-dot"/>Precios en vivo</div>
+            <MisMedicamentosBtn user={user} onClick={() => setMismedOpen(true)} />
             <AuthButton user={user} onOpen={() => setAuthOpen(true)} onSignOut={signOut} />
           </div>
         </header>
@@ -1156,6 +1168,12 @@ export default function App() {
         </footer>
 
         {mapSheet&&<MapSheet direccion={mapSheet} onClose={()=>setMapSheet(null)} geoPos={geoPos}/>}
+        <MisMedicamentosPanel
+          user={user}
+          open={mismedOpen}
+          onClose={() => setMismedOpen(false)}
+          onBuscar={(med) => seleccionarVariante(med)}
+        />
         <AuthModal open={authOpen} onClose={()=>setAuthOpen(false)} onSuccess={(u)=>{ signIn(u); setAuthOpen(false); }} />
       </div>
     </>
