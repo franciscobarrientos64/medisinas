@@ -116,21 +116,22 @@ export function AuthModal({ open, onClose, onSuccess }) {
 
   async function handleSaveProfile() {
     if (!nombre.trim()) { setError('El nombre es requerido.'); return; }
+    if (!apellido.trim()) { setError('El apellido es requerido.'); return; }
     const anioNum = parseInt(anio);
-    if (anio && (anioNum < 1920 || anioNum > 2010)) { setError('Año de nacimiento inválido.'); return; }
+    if (!anio || anioNum < 1920 || anioNum > 2010) { setError('Ingresa un año de nacimiento válido (ej: 1978).'); return; }
     setLoading(true);
     const perfil = {
       nombre: nombre.trim(),
       apellido: apellido.trim() || null,
       anio_nacimiento: anio ? anioNum : null,
       genero: genero || null,
-      condiciones: condiciones.length > 0 ? condiciones : null,
+
     };
     try {
       const res = await fetch('/api/update-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: userData?.id, ...perfil }),
+        body: JSON.stringify({ userId: userData?.id, nombre: perfil.nombre, apellido: perfil.apellido, anio_nacimiento: perfil.anio_nacimiento, genero: perfil.genero }),
       });
       await res.json();
     } catch {}
@@ -141,11 +142,7 @@ export function AuthModal({ open, onClose, onSuccess }) {
     setLoading(false);
   }
 
-  function toggleCondicion(c) {
-    setCondiciones(prev =>
-      prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]
-    );
-  }
+
 
   function handleOtpChange(idx, val) {
     const v = val.replace(/\D/g,'').slice(-1);
@@ -230,16 +227,16 @@ export function AuthModal({ open, onClose, onSuccess }) {
         {step === 'profile' && <>
           <div style={{fontSize:36,textAlign:'center',marginBottom:6}}>✅</div>
           <h2 style={{...title,fontSize:20}}>Cuéntanos un poco sobre ti</h2>
-          <p style={{...subtitle,marginBottom:16}}>Para personalizar tu experiencia.</p>
+          <p style={{...subtitle,marginBottom:16}}>Solo unos datos más — casi listo.</p>
 
           <div style={{display:'flex',gap:8,marginBottom:10}}>
             <input style={{...nameInput,marginBottom:0,flex:1}} type="text" placeholder="Nombre *"
               value={nombre} onChange={e => setNombre(e.target.value)} autoFocus/>
-            <input style={{...nameInput,marginBottom:0,flex:1}} type="text" placeholder="Apellido"
+            <input style={{...nameInput,marginBottom:0,flex:1}} type="text" placeholder="Apellido *"
               value={apellido} onChange={e => setApellido(e.target.value)}/>
           </div>
 
-          <input style={{...nameInput}} type="number" placeholder="Año de nacimiento (ej: 1978)"
+          <input style={{...nameInput}} type="number" placeholder="Año de nacimiento * (ej: 1978)"
             min="1920" max="2010" value={anio} onChange={e => setAnio(e.target.value)}/>
 
           <p style={{fontSize:12,color:'#6B7280',marginBottom:8,fontWeight:600}}>Género</p>
@@ -248,16 +245,6 @@ export function AuthModal({ open, onClose, onSuccess }) {
               <button key={g} onClick={() => setGenero(g === genero ? '' : g)}
                 style={{flex:1,padding:'9px 4px',borderRadius:10,border:`2px solid ${g===genero?'#0A7B5E':'#E5E7EB'}`,background:g===genero?'#E8F7F3':'#fff',color:g===genero?'#0A7B5E':'#6B7280',fontSize:12,fontWeight:600,cursor:'pointer'}}>
                 {g}
-              </button>
-            ))}
-          </div>
-
-          <p style={{fontSize:12,color:'#6B7280',marginBottom:8,fontWeight:600}}>Condición de salud (opcional)</p>
-          <div style={{display:'flex',flexWrap:'wrap',gap:8,marginBottom:16}}>
-            {['Diabetes','Hipertensión','Colesterol','Tiroides','Ninguna','Otra'].map(c => (
-              <button key={c} onClick={() => toggleCondicion(c)}
-                style={{padding:'7px 14px',borderRadius:20,border:`2px solid ${condiciones.includes(c)?'#0A7B5E':'#E5E7EB'}`,background:condiciones.includes(c)?'#E8F7F3':'#fff',color:condiciones.includes(c)?'#0A7B5E':'#6B7280',fontSize:13,fontWeight:600,cursor:'pointer'}}>
-                {c}
               </button>
             ))}
           </div>
