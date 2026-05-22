@@ -31,6 +31,14 @@ const css = `
 
   /* ── Header ── */
   .header { background:linear-gradient(90deg,#0B2D5E 0%,#00614A 100%); height:58px; padding:0 40px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; box-shadow:0 2px 12px rgba(0,0,0,0.25); }
+  @media (max-width:640px) {
+    .header { padding:0 14px; height:52px; }
+    .header-nav { display:none !important; }
+    .live-badge { display:none !important; }
+    .logo-text { font-size:17px; }
+    .header-right { gap:8px; }
+    .subheader { padding:0 14px; gap:16px; }
+  }
   .logo { display:flex; align-items:center; gap:12px; text-decoration:none; }
   .logo-icon { width:36px; height:36px; background:#fff; border-radius:8px; display:flex; align-items:center; justify-content:center; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.15); }
   .logo-text { font-family:var(--font-display); font-weight:900; font-size:21px; color:#fff; letter-spacing:-0.5px; }
@@ -337,6 +345,7 @@ export default function App() {
   const [authOpen, setAuthOpen] = useState(false);
   const [mismedOpen, setMismedOpen] = useState(false);
   const [savedIds, setSavedIds] = useState(new Set());
+  const [mostrarGenericos, setMostrarGenericos] = useState(false);
 
   const [query, setQuery] = useState('');
   const [queryUsuario, setQueryUsuario] = useState('');

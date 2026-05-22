@@ -65,7 +65,8 @@ export function detectarSintoma(texto) {
 export async function compartirWhatsApp(farmacia, precio, medicamento, distrito, direccion, telefono, ecommerceUrl, ecommerceNombre, geoPos) {
   const dest = encodeURIComponent(`${farmacia.split(' ').slice(0,3).join(' ')}, ${distrito || 'Lima'}, Peru`);
   const gmapsUrl = `https://maps.google.com/?q=${dest}`;
-  const wazeUrl  = `https://waze.com/ul?q=${dest}`;
+  const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
+  const wazeUrl  = isMobile ? `waze://?q=${dest}&navigate=yes` : `https://waze.com/ul?q=${dest}`;
   const linkCompra = (ecommerceUrl && ecommerceNombre && medicamento && !ecommerceUrl.endsWith('=')) ? ecommerceUrl : null;
   let msg = 'medisinas.com | Precio encontrado\n\n';
   msg += `Encontre *${medicamento}* a *S/ ${precio}* en:\n\n*${farmacia}*\n`;
