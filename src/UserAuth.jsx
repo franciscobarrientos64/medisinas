@@ -334,3 +334,4 @@ const headerUserBtn  = {display:'flex',alignItems:'center',gap:6,padding:'6px 12
 const avatarDot   = {width:26,height:26,background:C.verde,color:'#fff',borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:700};
 // v2.1.1 - auth WhatsApp integrado Thu May 21 18:40:19 UTC 2026
 // trigger 1779390968
+// redeploy trigger 1779766375
