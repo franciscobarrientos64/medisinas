@@ -354,76 +354,72 @@ function AppleIcon() {
 
 export function AuthButton({ user, onOpen, onSignOut, onMisMeds }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef(null);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    function handleClick(e) {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [menuOpen]);
 
   if (user) {
     const display = user.nombre || user.telefono?.slice(-4) || 'Mi cuenta';
     const initial = (user.nombre?.[0] || '#').toUpperCase();
     return (
-      <div style={{position:'relative'}} ref={menuRef}>
-        <button style={headerUserBtn} onClick={() => setMenuOpen(o => !o)}>
+      <>
+        <button style={headerUserBtn} onClick={() => setMenuOpen(true)}>
           <span style={avatarDot}>{initial}</span>
           <span style={{fontSize:13}}>{display}</span>
-          <span style={{fontSize:10,opacity:0.7}}>{menuOpen ? '▲' : '▼'}</span>
         </button>
+
+        {/* Bottom sheet del perfil */}
         {menuOpen && (
-          <div style={dropdownMenu}>
-            <div style={menuHeader}>
-              <div style={menuAvatar}>{initial}</div>
-              <div>
-                <div style={{fontWeight:700,fontSize:14,color:'#111827'}}>{user.nombre}{user.apellido ? ' '+user.apellido : ''}</div>
-                <div style={{fontSize:12,color:'#6B7280'}}>{user.email || user.telefono || ''}</div>
+          <div style={menuOverlay} onClick={() => setMenuOpen(false)}>
+            <div style={menuSheet} onClick={e => e.stopPropagation()}>
+              <div style={menuBar}/>
+
+              {/* Cabecera del perfil */}
+              <div style={menuHeader}>
+                <div style={menuAvatar}>{initial}</div>
+                <div>
+                  <div style={{fontWeight:700,fontSize:16,color:'#111827'}}>
+                    {user.nombre}{user.apellido ? ' '+user.apellido : ''}
+                  </div>
+                  <div style={{fontSize:13,color:'#6B7280',marginTop:2}}>
+                    {user.email || user.telefono || ''}
+                  </div>
+                </div>
               </div>
+
+              <div style={menuDivider}/>
+
+              <button style={menuItem} onClick={() => { setMenuOpen(false); onMisMeds?.(); }}>
+                <span style={{fontSize:20}}>💊</span>
+                <span>Mis medicamentos</span>
+              </button>
+              <button style={menuItem} onClick={() => setMenuOpen(false)}>
+                <span style={{fontSize:20}}>🔔</span>
+                <span>Mis alertas</span>
+              </button>
+
+              <div style={menuDivider}/>
+
+              <button style={{...menuItem, color:'#EF4444'}}
+                onClick={() => { setMenuOpen(false); onSignOut(); }}>
+                <span style={{fontSize:20}}>↩️</span>
+                <span>Cerrar sesión</span>
+              </button>
+
+              <div style={{height:16}}/>
             </div>
-            <div style={menuDivider}/>
-            <button style={menuItem} onClick={() => { setMenuOpen(false); onMisMeds?.(); }}>
-              💊 Mis medicamentos
-            </button>
-            <button style={menuItem} onClick={() => { setMenuOpen(false); }}>
-              🔔 Mis alertas
-            </button>
-            <div style={menuDivider}/>
-            <button style={{...menuItem, color:'#EF4444'}} onClick={() => { setMenuOpen(false); onSignOut(); }}>
-              Cerrar sesión
-            </button>
           </div>
         )}
-      </div>
+      </>
     );
   }
   return <button style={headerLoginBtn} onClick={onOpen}>Guardar mis medicamentos</button>;
 }
 
-const dropdownMenu = {
-  position:'fixed', top:60, right:12,
-  background:'#fff', borderRadius:12, boxShadow:'0 8px 32px rgba(0,0,0,0.18)',
-  border:'1px solid #E5E7EB', minWidth:230, maxWidth:'92vw', zIndex:9999, overflow:'hidden',
-};
-const menuHeader = {
-  display:'flex', alignItems:'center', gap:10, padding:'14px 16px',
-  background:'#F9FAFB',
-};
-const menuAvatar = {
-  width:36, height:36, borderRadius:'50%', background:'#0A7B5E',
-  color:'#fff', display:'flex', alignItems:'center', justifyContent:'center',
-  fontSize:16, fontWeight:700, flexShrink:0,
-};
-const menuDivider = { height:1, background:'#E5E7EB' };
-const menuItem = {
-  display:'block', width:'100%', textAlign:'left',
-  padding:'11px 16px', border:'none', background:'none',
-  fontSize:14, color:'#111827', cursor:'pointer',
-  transition:'background .1s',
-};
+const menuOverlay = {position:'fixed',inset:0,background:'rgba(0,0,0,0.45)',backdropFilter:'blur(2px)',zIndex:9999,display:'flex',alignItems:'flex-end',justifyContent:'center'};
+const menuSheet  = {background:'#fff',width:'100%',maxWidth:480,borderRadius:'20px 20px 0 0',padding:'10px 0 0',boxShadow:'0 -4px 32px rgba(0,0,0,0.15)'};
+const menuBar    = {width:36,height:4,background:'#E5E7EB',borderRadius:2,margin:'0 auto 16px'};
+const menuHeader = {display:'flex',alignItems:'center',gap:14,padding:'0 20px 16px'};
+const menuAvatar = {width:48,height:48,borderRadius:'50%',background:'#0A7B5E',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:20,fontWeight:700,flexShrink:0};
+const menuDivider= {height:1,background:'#F3F4F6',margin:'4px 0'};
+const menuItem   = {display:'flex',alignItems:'center',gap:14,width:'100%',textAlign:'left',padding:'14px 20px',border:'none',background:'none',fontSize:15,color:'#111827',cursor:'pointer'};
 
 const overlay     = {position:'fixed',inset:0,background:'rgba(0,0,0,0.55)',backdropFilter:'blur(3px)',zIndex:9999,display:'flex',alignItems:'flex-end',justifyContent:'center'};
 const sheet       = {background:C.blanco,width:'100%',maxWidth:480,borderRadius:'24px 24px 0 0',padding:'12px 24px 44px',position:'relative',maxHeight:'92vh',overflowY:'auto'};
