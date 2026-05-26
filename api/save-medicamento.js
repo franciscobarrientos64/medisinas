@@ -3,7 +3,7 @@ const { createClient } = require("@supabase/supabase-js");
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
 
-  const { userId, medicamento } = req.body;
+  const { userId, medicamento, frecuencia_dias, compraste_hoy } = req.body;
   if (!userId || !medicamento) return res.status(400).json({ error: "Faltan datos" });
 
   const supabase = createClient(

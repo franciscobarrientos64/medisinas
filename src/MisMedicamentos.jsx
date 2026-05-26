@@ -101,6 +101,7 @@ export function MisMedicamentosPanel({ user, open, onClose, onBuscar }) {
                     onBuscar={() => { handleClose(); onBuscar(med); }}
                     onEliminar={() => eliminar(med.id)}
                     eliminando={guardando === med.id}
+                    onCompreHoy={() => cargarMedicamentos()}
                   />
                 ))}
               </div>
@@ -119,13 +120,41 @@ export function MisMedicamentosPanel({ user, open, onClose, onBuscar }) {
   );
 }
 
-function MedItem({ med, onBuscar, onEliminar, eliminando }) {
-  const diasDesde = med.ultima_compra
-    ? Math.floor((Date.now() - new Date(med.ultima_compra)) / 86400000)
-    : null;
+function MedItem({ med, onBuscar, onEliminar, eliminando, onCompreHoy }) {
+  const [comprando, setComprando] = useState(false);
+
+  const proxima = () => {
+    if (!med.ultima_compra || !med.frecuencia_dias) return null;
+    const d = new Date(med.ultima_compra);
+    d.setDate(d.getDate() + med.frecuencia_dias);
+    return d;
+  };
+
+  const diasRestantes = () => {
+    const p = proxima();
+    if (!p) return null;
+    return Math.ceil((p - Date.now()) / 86400000);
+  };
+
+  const dias = diasRestantes();
+  const estaVencido = dias !== null && dias < 0;
+  const estaPorVencer = dias !== null && dias >= 0 && dias <= 5;
+
+  async function handleCompreHoy() {
+    setComprando(true);
+    try {
+      await fetch('/api/compre-hoy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: med.usuario_id, medicamentoId: med.id }),
+      });
+      onCompreHoy?.();
+    } catch {}
+    finally { setComprando(false); }
+  }
 
   return (
-    <div style={itemCard}>
+    <div style={{...itemCard, borderColor: estaVencido ? '#FCA5A5' : estaPorVencer ? '#FDE68A' : C.gris200}}>
       <div style={{flex:1}}>
         <p style={{fontSize:15,fontWeight:700,color:C.gris900,marginBottom:3}}>
           {med.nombre_producto}
@@ -133,15 +162,30 @@ function MedItem({ med, onBuscar, onEliminar, eliminando }) {
         <p style={{fontSize:12,color:C.gris600}}>
           {med.concent}{med.forma_farmaceutica ? ` · ${med.forma_farmaceutica}` : ''}
         </p>
-        {diasDesde !== null && (
-          <p style={{fontSize:11,color:C.gris400,marginTop:3}}>
-            {diasDesde === 0 ? 'Guardado hoy' : `Guardado hace ${diasDesde} día${diasDesde !== 1 ? 's' : ''}`}
+
+        {/* Estado de recompra */}
+        {dias !== null && (
+          <p style={{fontSize:12,marginTop:5,fontWeight:600,
+            color: estaVencido ? '#DC2626' : estaPorVencer ? '#D97706' : C.verde}}>
+            {estaVencido
+              ? `⚠️ Debías recomprar hace ${Math.abs(dias)} día${Math.abs(dias)!==1?'s':''}`
+              : dias === 0
+              ? '🔔 Recomprar hoy'
+              : estaPorVencer
+              ? `⏰ Recomprar en ${dias} día${dias!==1?'s':''}`
+              : `✅ Próxima compra en ${dias} días`
+            }
           </p>
         )}
+        {!med.frecuencia_dias && (
+          <p style={{fontSize:11,color:C.gris400,marginTop:3}}>Sin frecuencia configurada</p>
+        )}
       </div>
+
       <div style={{display:'flex',flexDirection:'column',gap:6,alignItems:'flex-end'}}>
-        <button onClick={onBuscar} style={btnBuscar}>
-          🔍 Ver precio
+        <button onClick={onBuscar} style={btnBuscar}>🔍 Ver precio</button>
+        <button onClick={handleCompreHoy} disabled={comprando} style={btnCompre}>
+          {comprando ? '...' : '✅ Compré'}
         </button>
         <button onClick={onEliminar} disabled={eliminando} style={btnEliminar}>
           {eliminando ? '...' : '🗑'}
@@ -178,3 +222,4 @@ const empty      = {textAlign:'center',padding:'40px 20px',color:C.gris600};
 const itemCard   = {background:C.gris50,border:`1px solid ${C.gris200}`,borderRadius:12,padding:'14px 16px',display:'flex',gap:12,alignItems:'flex-start'};
 const btnBuscar  = {padding:'7px 14px',background:C.verde,color:'#fff',border:'none',borderRadius:8,fontSize:12,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap'};
 const btnEliminar= {padding:'6px 10px',background:'none',border:`1px solid ${C.gris200}`,borderRadius:8,fontSize:14,cursor:'pointer',color:C.gris400};
+const btnCompre  = {padding:'6px 10px',background:'#F0FDF4',border:`1px solid #86EFAC`,borderRadius:8,fontSize:12,cursor:'pointer',color:'#166534',fontWeight:600,whiteSpace:'nowrap'};

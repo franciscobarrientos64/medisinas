@@ -5,6 +5,7 @@ import { getEcommerceUrl } from './farmacias';
 import { getHistorial, agregarAlHistorial, detectarSintoma, compartirWhatsApp, calcularDistancia, DISCLAIMER_SINTOMA, SINTOMAS } from './utils';
 import { AuthModal, AuthButton, ProfileSheet, useAuth } from './UserAuth';
 import { MisMedicamentosBtn, MisMedicamentosPanel, guardarMedicamento } from './MisMedicamentos';
+import { GuardarMedModal } from './GuardarMedModal';
 import { MapaFarmacias, ToggleVistaBtn } from './MapaFarmacias';
 import { AlertaBtn, AlertaModal } from './AlertaModal';
 
@@ -351,6 +352,7 @@ export default function App() {
   const [mostrarGenericos, setMostrarGenericos] = useState(false);
   const [vista, setVista] = useState('lista'); // 'lista' | 'mapa'
   const [alertaData, setAlertaData] = useState(null); // { variante, precioActual, distrito }
+  const [guardarData, setGuardarData] = useState(null); // variante a guardar
   const [alertasActivas, setAlertasActivas] = useState(new Set()); // keys de alertas activas
 
   const [query, setQuery] = useState('');
@@ -459,12 +461,9 @@ export default function App() {
     }
   };
 
-  async function handleGuardarMed(variante) {
+  function handleGuardarMed(variante) {
     if (!user) { setAuthOpen(true); return; }
-    const result = await guardarMedicamento(user.id, variante);
-    if (result.success) {
-      setSavedIds(prev => new Set([...prev, `${variante.grupo}_${variante.codGrupoFF}_${variante.concent}`]));
-    }
+    setGuardarData(variante);
   }
 
   const departamentos = Object.keys(UBIGEOS);
@@ -1260,6 +1259,18 @@ export default function App() {
           user={user}
           onSignOut={() => { signOut(); setProfileOpen(false); }}
           onMisMeds={() => { setProfileOpen(false); setMismedOpen(true); }}
+        />
+        <GuardarMedModal
+          open={!!guardarData}
+          onClose={() => setGuardarData(null)}
+          variante={guardarData}
+          user={user}
+          onSuccess={() => {
+            if (guardarData) {
+              setSavedIds(prev => new Set([...prev, `${guardarData.grupo}_${guardarData.codGrupoFF}_${guardarData.concent}`]));
+            }
+            setGuardarData(null);
+          }}
         />
         <AuthModal open={authOpen} onClose={()=>setAuthOpen(false)} onSuccess={(u)=>{ signIn(u); setAuthOpen(false); }} />
       </div>
