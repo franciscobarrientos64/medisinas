@@ -20,8 +20,64 @@ function clearLocalUser() { localStorage.removeItem(SESSION_KEY); }
 
 export function useAuth() {
   const [user, setUser] = useState(() => getLocalUser());
-  const signOut = () => { clearLocalUser(); setUser(null); };
-  const signIn  = (u) => { saveLocalUser(u); setUser(u); };
+
+  // Detectar sesión OAuth de Google/Apple al cargar
+  useEffect(() => {
+    async function checkSupabaseSession() {
+      try {
+        const { createClient } = await import('@supabase/supabase-js');
+        const sb = createClient(
+          process.env.REACT_APP_SUPABASE_URL,
+          process.env.REACT_APP_SUPABASE_ANON_KEY
+        );
+        const { data: { session } } = await sb.auth.getSession();
+        if (session?.user && !getLocalUser()) {
+          const u = {
+            id: session.user.id,
+            nombre: session.user.user_metadata?.full_name?.split(' ')[0] || '',
+            apellido: session.user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || '',
+            email: session.user.email,
+            telefono: session.user.phone || null,
+            provider: session.user.app_metadata?.provider,
+          };
+          saveLocalUser(u);
+          setUser(u);
+        }
+        // Escuchar cambios de sesión OAuth
+        sb.auth.onAuthStateChange((_event, session) => {
+          if (session?.user) {
+            const u = {
+              id: session.user.id,
+              nombre: session.user.user_metadata?.full_name?.split(' ')[0] || '',
+              apellido: session.user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || '',
+              email: session.user.email,
+              telefono: session.user.phone || null,
+              provider: session.user.app_metadata?.provider,
+            };
+            saveLocalUser(u);
+            setUser(u);
+          } else if (!getLocalUser()) {
+            setUser(null);
+          }
+        });
+      } catch {}
+    }
+    checkSupabaseSession();
+  }, []);
+
+  const signOut = async () => {
+    clearLocalUser();
+    setUser(null);
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const sb = createClient(
+        process.env.REACT_APP_SUPABASE_URL,
+        process.env.REACT_APP_SUPABASE_ANON_KEY
+      );
+      await sb.auth.signOut();
+    } catch {}
+  };
+  const signIn = (u) => { saveLocalUser(u); setUser(u); };
   return { user, signOut, signIn };
 }
 
