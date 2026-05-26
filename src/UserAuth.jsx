@@ -352,18 +352,78 @@ function AppleIcon() {
   </svg>;
 }
 
-export function AuthButton({ user, onOpen, onSignOut }) {
+export function AuthButton({ user, onOpen, onSignOut, onMisMeds }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleClick(e) {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [menuOpen]);
+
   if (user) {
     const display = user.nombre || user.telefono?.slice(-4) || 'Mi cuenta';
+    const initial = (user.nombre?.[0] || '#').toUpperCase();
     return (
-      <button style={headerUserBtn} onClick={onSignOut} title="Cerrar sesión">
-        <span style={avatarDot}>{(user.nombre?.[0]||'#').toUpperCase()}</span>
-        <span style={{fontSize:13}}>{display}</span>
-      </button>
+      <div style={{position:'relative'}} ref={menuRef}>
+        <button style={headerUserBtn} onClick={() => setMenuOpen(o => !o)}>
+          <span style={avatarDot}>{initial}</span>
+          <span style={{fontSize:13}}>{display}</span>
+          <span style={{fontSize:10,opacity:0.7}}>{menuOpen ? '▲' : '▼'}</span>
+        </button>
+        {menuOpen && (
+          <div style={dropdownMenu}>
+            <div style={menuHeader}>
+              <div style={menuAvatar}>{initial}</div>
+              <div>
+                <div style={{fontWeight:700,fontSize:14,color:'#111827'}}>{user.nombre}{user.apellido ? ' '+user.apellido : ''}</div>
+                <div style={{fontSize:12,color:'#6B7280'}}>{user.email || user.telefono || ''}</div>
+              </div>
+            </div>
+            <div style={menuDivider}/>
+            <button style={menuItem} onClick={() => { setMenuOpen(false); onMisMeds?.(); }}>
+              💊 Mis medicamentos
+            </button>
+            <button style={menuItem} onClick={() => { setMenuOpen(false); }}>
+              🔔 Mis alertas
+            </button>
+            <div style={menuDivider}/>
+            <button style={{...menuItem, color:'#EF4444'}} onClick={() => { setMenuOpen(false); onSignOut(); }}>
+              Cerrar sesión
+            </button>
+          </div>
+        )}
+      </div>
     );
   }
   return <button style={headerLoginBtn} onClick={onOpen}>Guardar mis medicamentos</button>;
 }
+
+const dropdownMenu = {
+  position:'absolute', top:'calc(100% + 8px)', right:0,
+  background:'#fff', borderRadius:12, boxShadow:'0 8px 32px rgba(0,0,0,0.18)',
+  border:'1px solid #E5E7EB', minWidth:220, zIndex:9999, overflow:'hidden',
+};
+const menuHeader = {
+  display:'flex', alignItems:'center', gap:10, padding:'14px 16px',
+  background:'#F9FAFB',
+};
+const menuAvatar = {
+  width:36, height:36, borderRadius:'50%', background:'#0A7B5E',
+  color:'#fff', display:'flex', alignItems:'center', justifyContent:'center',
+  fontSize:16, fontWeight:700, flexShrink:0,
+};
+const menuDivider = { height:1, background:'#E5E7EB' };
+const menuItem = {
+  display:'block', width:'100%', textAlign:'left',
+  padding:'11px 16px', border:'none', background:'none',
+  fontSize:14, color:'#111827', cursor:'pointer',
+  transition:'background .1s',
+};
 
 const overlay     = {position:'fixed',inset:0,background:'rgba(0,0,0,0.55)',backdropFilter:'blur(3px)',zIndex:9999,display:'flex',alignItems:'flex-end',justifyContent:'center'};
 const sheet       = {background:C.blanco,width:'100%',maxWidth:480,borderRadius:'24px 24px 0 0',padding:'12px 24px 44px',position:'relative',maxHeight:'92vh',overflowY:'auto'};

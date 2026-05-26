@@ -788,7 +788,7 @@ export default function App() {
           <div className="header-right" style={{display:'flex',alignItems:'center',gap:'14px'}}>
             <div className="live-badge"><div className="live-dot"/>Precios en vivo</div>
             <MisMedicamentosBtn user={user} onClick={() => setMismedOpen(true)} />
-            <AuthButton user={user} onOpen={() => setAuthOpen(true)} onSignOut={signOut} />
+            <AuthButton user={user} onOpen={() => setAuthOpen(true)} onSignOut={signOut} onMisMeds={() => setMismedOpen(true)} />
           </div>
         </header>
 
