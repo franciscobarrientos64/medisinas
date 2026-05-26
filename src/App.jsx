@@ -849,6 +849,23 @@ export default function App() {
                   onMouseDown={e=>e.preventDefault()}
                   onClick={()=>{ setSugerencias([]); setSintomaDetectado(null); }}>🔍</button>
 
+                {/* Botón guardar — aparece cuando hay variante seleccionada */}
+                {varianteActiva && (
+                  <button
+                    onMouseDown={e=>e.preventDefault()}
+                    onClick={() => handleGuardarMed(varianteActiva)}
+                    style={{
+                      position:'absolute', right:56, top:'50%', transform:'translateY(-50%)',
+                      background:'#E8F7F3', border:'1.5px solid #0A7B5E', borderRadius:8,
+                      color:'#0A7B5E', fontSize:12, fontWeight:700, padding:'5px 10px',
+                      cursor:'pointer', whiteSpace:'nowrap', zIndex:10,
+                    }}
+                    title="Guardar este medicamento en mi lista"
+                  >
+                    💊 Guardar
+                  </button>
+                )}
+
                 {/* Autocomplete */}
                 {(sugerencias.length > 0 || (sintomaDetectado && query.length >= 3)) && (
                   <div className="autocomplete">
