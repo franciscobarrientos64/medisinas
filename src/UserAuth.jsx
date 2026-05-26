@@ -183,7 +183,9 @@ export function AuthModal({ open, onClose, onSuccess }) {
           </div>
           <h2 style={title}>Guarda tus medicamentos</h2>
           <p style={subtitle}>Tu historial de precios y alertas, siempre disponibles.</p>
-          <div style={divider}><div style={line}/><span style={divText}>ingresa tu número</span><div style={line}/></div>
+          <SocialBtn icon={<GoogleIcon/>} label="Continuar con Google" onClick={handleGoogle} disabled={loading}/>
+          <SocialBtn icon={<AppleIcon/>}  label="Continuar con Apple"  onClick={handleApple}  disabled={loading} dark/>
+          <div style={divider}><div style={line}/><span style={divText}>o con tu número</span><div style={line}/></div>
           <div style={phoneRow}>
             <span style={prefix}>+51</span>
             <input style={phoneInput} type="tel" inputMode="numeric" placeholder="987 654 321"
