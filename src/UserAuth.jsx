@@ -404,9 +404,9 @@ export function AuthButton({ user, onOpen, onSignOut, onMisMeds }) {
 }
 
 const dropdownMenu = {
-  position:'absolute', top:'calc(100% + 8px)', right:0,
+  position:'fixed', top:60, right:12,
   background:'#fff', borderRadius:12, boxShadow:'0 8px 32px rgba(0,0,0,0.18)',
-  border:'1px solid #E5E7EB', minWidth:220, zIndex:9999, overflow:'hidden',
+  border:'1px solid #E5E7EB', minWidth:230, maxWidth:'92vw', zIndex:9999, overflow:'hidden',
 };
 const menuHeader = {
   display:'flex', alignItems:'center', gap:10, padding:'14px 16px',
