@@ -123,7 +123,7 @@ export function MapaFarmacias({ resultados, geoPos }) {
     return () => { mounted = false; };
   }, []);
 
-  // Agregar marcadores — todos instantáneamente sin geocoding
+  // Agregar marcadores — geocoding real para las primeras 30
   useEffect(() => {
     if (!listo || !leafletMap.current || !resultados.length) return;
     const L = window.L;
@@ -131,36 +131,39 @@ export function MapaFarmacias({ resultados, geoPos }) {
     markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
 
-    const precios = resultados.map(r => parseFloat(r.precio2 || r.precio1 || r.precio3)).filter(p => p > 0);
+    const primeras = resultados.slice(0, 30);
+    const precios = primeras.map(r => parseFloat(r.precio2 || r.precio1 || r.precio3)).filter(p => p > 0);
     const minP = Math.min(...precios);
     const maxP = Math.max(...precios);
 
-    // Agrupar por distrito para dispersar correctamente
-    const porDistrito = {};
-    resultados.forEach((r, i) => {
-      const d = r.distrito || 'Lima';
-      if (!porDistrito[d]) porDistrito[d] = [];
-      porDistrito[d].push({ ...r, _idx: i });
-    });
+    const agregarMarcadores = async () => {
+      const bounds = [];
 
-    const bounds = [];
-
-    Object.entries(porDistrito).forEach(([distrito, farmacias]) => {
-      // Usar GPS real si está disponible y el distrito coincide, si no usar centro del distrito
-      let centroDist;
-      if (geoPos && farmacias.some(f => f.distrito && f.distrito.toLowerCase().includes('miraflores'))) {
-        centroDist = [geoPos.lat, geoPos.lon];
-      } else {
-        centroDist = getDistritoCoords(distrito);
-      }
-
-      farmacias.forEach((r, idx) => {
+      for (let i = 0; i < primeras.length; i++) {
+        const r = primeras[i];
         const precio = parseFloat(r.precio2 || r.precio1 || r.precio3);
-        if (!precio) return;
+        if (!precio) continue;
 
-        const coords = geoPos && idx < 3 && r.distrito === (geoPos.distrito || '')
-          ? [geoPos.lat + (idx * 0.0005), geoPos.lon + (idx * 0.0005)]
-          : dispersarCoordenadas(idx, farmacias.length, centroDist);
+        // Geocodificar la dirección real
+        let coords = null;
+        try {
+          const dir = `${r.direccion || ''}, ${r.distrito || 'Lima'}, Lima, Peru`;
+          const q = encodeURIComponent(dir);
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&countrycodes=pe`,
+            { headers: { 'User-Agent': 'MediSinas/1.0 info@medisinas.com' } }
+          );
+          const data = await res.json();
+          if (data[0]) {
+            coords = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+          }
+        } catch {}
+
+        // Fallback: centro del distrito si geocoding falla
+        if (!coords) {
+          const centro = geoPos ? [geoPos.lat, geoPos.lon] : getDistritoCoords(r.distrito || 'Lima');
+          coords = dispersarCoordenadas(i, primeras.length, centro);
+        }
 
         const color = getPrecioColor(precio, minP, maxP);
         const esMinimo = precio === minP;
@@ -168,30 +171,14 @@ export function MapaFarmacias({ resultados, geoPos }) {
         const esPublico = r.setcodigo === 'Público';
 
         const icon = L.divIcon({
-          html: `
-            <div style="
-              background:${color};
-              color:#fff;
-              border-radius:20px;
-              padding:4px 9px;
-              font-size:11px;
-              font-weight:700;
-              white-space:nowrap;
-              box-shadow:0 2px 8px rgba(0,0,0,0.25);
-              border:2px solid rgba(255,255,255,0.8);
-              ${esMinimo ? 'ring:2px solid gold;' : ''}
-            ">
-              ${es24h ? '🌙 ' : ''}S/${precio.toFixed(2)}
-            </div>`,
+          html: `<div style="background:${color};color:#fff;border-radius:20px;padding:4px 9px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.25);border:2px solid rgba(255,255,255,0.9)">${es24h ? '🌙 ' : ''}S/${precio.toFixed(2)}</div>`,
           className:'', iconSize:[70,24], iconAnchor:[35,12],
         });
 
-        const marker = L.marker(coords, { icon })
-          .addTo(leafletMap.current);
-
         const gmapsUrl = `https://maps.google.com/?q=${encodeURIComponent(`${r.nombreComercial} ${r.direccion} ${r.distrito || ''} Lima Peru`)}`;
 
-        marker.bindPopup(L.popup({ maxWidth:260, className:'medisinas-popup' }).setContent(`
+        const marker = L.marker(coords, { icon }).addTo(leafletMap.current);
+        marker.bindPopup(L.popup({ maxWidth:260 }).setContent(`
           <div style="font-family:-apple-system,sans-serif;padding:2px">
             <div style="font-weight:700;font-size:13px;color:#111827;margin-bottom:4px">${r.nombreComercial || ''}</div>
             <div style="font-size:11px;color:#6B7280;margin-bottom:6px;line-height:1.4">${r.direccion || ''}${r.distrito ? ', '+r.distrito : ''}</div>
@@ -204,20 +191,22 @@ export function MapaFarmacias({ resultados, geoPos }) {
               ${esPublico ? '<span style="background:#DBEAFE;color:#1D4ED8;font-size:10px;padding:2px 6px;border-radius:8px;font-weight:600">Público</span>' : '<span style="background:#FEE2E2;color:#991B1B;font-size:10px;padding:2px 6px;border-radius:8px;font-weight:600">Privado</span>'}
               ${r.telefono ? `<span style="font-size:10px;color:#6B7280">📞 ${r.telefono}</span>` : ''}
             </div>
-            <a href="${gmapsUrl}" target="_blank" style="display:block;text-align:center;background:#0A7B5E;color:#fff;text-decoration:none;padding:7px;border-radius:8px;font-size:12px;font-weight:600">
-              🗺 Cómo llegar
-            </a>
+            <a href="${gmapsUrl}" target="_blank" style="display:block;text-align:center;background:#0A7B5E;color:#fff;text-decoration:none;padding:7px;border-radius:8px;font-size:12px;font-weight:600">🗺 Cómo llegar</a>
           </div>
         `));
 
         bounds.push(coords);
         markersRef.current.push(marker);
-      });
-    });
+        // Pequeña pausa para no saturar Nominatim
+        if (i < primeras.length - 1) await new Promise(r => setTimeout(r, 200));
+      }
 
-    if (bounds.length > 0) {
-      leafletMap.current.fitBounds(bounds, { padding:[30,30], maxZoom:15 });
-    }
+      if (bounds.length > 0) {
+        leafletMap.current.fitBounds(bounds, { padding:[30,30], maxZoom:15 });
+      }
+    };
+
+    agregarMarcadores();
   }, [listo, resultados]);
 
   return (
@@ -252,7 +241,7 @@ export function MapaFarmacias({ resultados, geoPos }) {
         borderRadius:20,padding:'5px 14px',fontSize:11,fontWeight:500,
         whiteSpace:'nowrap',
       }}>
-        {resultados.length} farmacias · posición aproximada
+        Mostrando {Math.min(30, resultados.length)} de {resultados.length} farmacias
       </div>
 
       <div ref={mapRef} style={{width:'100%',height:'430px',borderRadius:12,zIndex:1}}/>
