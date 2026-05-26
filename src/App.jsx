@@ -9,6 +9,7 @@ import { GuardarMedModal } from './GuardarMedModal';
 import { MapaFarmacias, ToggleVistaBtn } from './MapaFarmacias';
 import { AlertaBtn, AlertaModal } from './AlertaModal';
 import { HorarioBadge } from './HorarioBadge';
+import { getEstadoFarmacia } from './horarios';
 
 const GA_ID = 'G-MZ744SDY8T';
 function gtag(...args) { window.dataLayer = window.dataLayer || []; window.dataLayer.push(args); }
@@ -352,6 +353,7 @@ export default function App() {
   const [savedIds, setSavedIds] = useState(new Set());
   const [mostrarGenericos, setMostrarGenericos] = useState(false);
   const [vista, setVista] = useState('lista'); // 'lista' | 'mapa'
+  const [filtroAbierto, setFiltroAbierto] = useState(false);
   const [alertaData, setAlertaData] = useState(null); // { variante, precioActual, distrito }
   const [guardarData, setGuardarData] = useState(null); // variante a guardar
   const [alertasActivas, setAlertasActivas] = useState(new Set()); // keys de alertas activas
@@ -768,12 +770,19 @@ export default function App() {
     return (a.nombreComercial||'').localeCompare(b.nombreComercial||'');
   });
 
-  const precios=filtrados.map(r=>r.precio2||r.precio1||0).filter(p=>p>0);
+  const filtradosFinal = filtroAbierto
+    ? filtrados.filter(r => {
+        const { estado } = getEstadoFarmacia(r.nombreComercial, r.setcodigo);
+        return estado === 'abierto' || estado === '24h';
+      })
+    : filtrados;
+
+  const precios=filtradosFinal.map(r=>r.precio2||r.precio1||0).filter(p=>p>0);
   const minP=precios.length?Math.min(...precios):null;
   const maxP=precios.length?Math.max(...precios):null;
   const farmaciasText=totalFarmacias?`${totalFarmacias} farmacias`:'más de 30,000 farmacias';
   const generico=detectarGenerico();
-  const bestResult=filtrados[0];
+  const bestResult=filtradosFinal[0];
 
   return (
     <>
@@ -969,7 +978,7 @@ export default function App() {
               <div className="stat-item"><div className="stat-val green">S/ {minP?.toFixed(2)}</div><div className="stat-label">Precio mínimo</div></div>
               <div className="stat-item"><div className="stat-val">S/ {maxP?.toFixed(2)}</div><div className="stat-label">Precio máximo</div></div>
               <div className="stat-item"><div className="stat-val red">S/ {(maxP-minP)?.toFixed(2)}</div><div className="stat-label">Puedes ahorrar</div></div>
-              <div className="stat-item"><div className="stat-val">{filtrados.length}</div><div className="stat-label">Farmacias</div></div>
+              <div className="stat-item"><div className="stat-val">{filtradosFinal.length}</div><div className="stat-label">Farmacias</div></div>
             </div>
           </div>
         )}
@@ -1002,7 +1011,7 @@ export default function App() {
           {/* Vista Mapa */}
           {busquedaActiva && vista === 'mapa' && filtrados.length > 0 && (
             <MapaFarmacias
-              resultados={filtrados}
+              resultados={filtradosFinal}
               geocacheRef={geocacheRef}
               geoPos={geoPos}
               varianteActiva={varianteActiva}
@@ -1138,7 +1147,8 @@ export default function App() {
               </select>
               <button className={`filter-chip ${soloGenerico?'active':''}`} onClick={()=>setSoloGenerico(!soloGenerico)}>Genérico</button>
               <button className={`filter-chip ${soloPublico?'active':''}`} onClick={()=>setSoloPublico(!soloPublico)}>Solo público</button>
-              {!loading&&<span className="results-count">{filtrados.length} resultados</span>}
+              <button className={`filter-chip ${filtroAbierto?'active':''}`} onClick={()=>setFiltroAbierto(!filtroAbierto)}>🟢 Abiertas ahora</button>
+              {!loading&&<span className="results-count">{filtradosFinal.length} resultados</span>}
             </div>
           )}
 
@@ -1152,9 +1162,9 @@ export default function App() {
           )}
 
           {/* Resultados completos */}
-          {!loading && !modoRapido && filtrados.length>0 && (
+          {!loading && !modoRapido && filtradosFinal.length>0 && (
             <div className="results">
-              {filtrados.map((r,i)=>{
+              {filtradosFinal.map((r,i)=>{
                 const precioUnidad=r.precio2||null;
                 const precioCaja=r.precio1||null;
                 const precioMostrar=precioUnidad||precioCaja||r.precio3;
@@ -1180,7 +1190,7 @@ export default function App() {
                         {distKm!==null&&<span className="badge badge-dist-km">📍 {distKm.toFixed(1)} km</span>}
                         {ecommerce&&<span className="badge badge-online">🛒 Online</span>}
                       </div>
-                      <HorarioBadge nombreComercial={r.nombreComercial} distrito={r.distrito} horariosVisible={horariosVisible} setHorariosVisible={setHorariosVisible} horariosCache={horariosCache}/>
+                      <HorarioBadge nombreComercial={r.nombreComercial} setcodigo={r.setcodigo}/>
                       <div className="card-addr">📍 {r.direccion}</div>
                       <div className="card-meta">
                         {r.fecha&&<span>🗓 {r.fecha.split(' ')[0]}</span>}
@@ -1213,7 +1223,7 @@ export default function App() {
           )}
 
           {/* Sin resultados */}
-          {!loading&&busquedaActiva&&filtrados.length===0&&resultados.length===0&&(
+          {!loading&&busquedaActiva&&filtradosFinal.length===0&&resultados.length===0&&(
             <div className="empty">
               <div className="empty-icon">🔍</div>
               <div className="empty-title">Sin resultados en esta zona</div>
