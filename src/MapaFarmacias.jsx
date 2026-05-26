@@ -164,11 +164,8 @@ export function MapaFarmacias({ resultados, geoPos }) {
           }
         } catch {}
 
-        // Fallback: centro del distrito si geocoding falla
-        if (!coords) {
-          const centro = geoPos ? [geoPos.lat, geoPos.lon] : getDistritoCoords(r.distrito || 'Lima');
-          coords = dispersarCoordenadas(i, primeras.length, centro);
-        }
+        // Si geocoding falla — saltamos este marcador (mejor 5 exactos que 30 incorrectos)
+        if (!coords) continue;
 
         const color = getPrecioColor(precio, minP, maxP);
         const esMinimo = precio === minP;
@@ -246,7 +243,7 @@ export function MapaFarmacias({ resultados, geoPos }) {
         borderRadius:20,padding:'5px 14px',fontSize:11,fontWeight:500,
         whiteSpace:'nowrap',
       }}>
-        Mostrando {Math.min(30, resultados.length)} de {resultados.length} farmacias
+        Geocodificando las primeras 30 de {resultados.length} farmacias...
       </div>
 
       <div ref={mapRef} style={{width:'100%',height:'430px',borderRadius:12,zIndex:1}}/>
