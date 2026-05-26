@@ -144,18 +144,23 @@ export function MapaFarmacias({ resultados, geoPos }) {
         const precio = parseFloat(r.precio2 || r.precio1 || r.precio3);
         if (!precio) continue;
 
-        // Geocodificar la dirección real
+        // Geocodificar con bounding box de Lima para evitar matches fuera de la ciudad
+        // Lima: lat -12.5 a -11.5, lon -77.5 a -76.5
+        const LIMA_BBOX = '-77.5,-12.5,-76.5,-11.5'; // minLon,minLat,maxLon,maxLat
         let coords = null;
         try {
-          const dir = `${r.direccion || ''}, ${r.distrito || 'Lima'}, Lima, Peru`;
+          const dir = `${r.direccion || ''}, ${r.distrito || ''}, Lima`;
           const q = encodeURIComponent(dir);
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&countrycodes=pe`,
-            { headers: { 'User-Agent': 'MediSinas/1.0 info@medisinas.com' } }
-          );
-          const data = await res.json();
+          const url = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&countrycodes=pe&viewbox=${LIMA_BBOX}&bounded=1`;
+          const resp = await fetch(url, { headers: { 'User-Agent': 'MediSinas/1.0 info@medisinas.com' } });
+          const data = await resp.json();
           if (data[0]) {
-            coords = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
+            const lat = parseFloat(data[0].lat);
+            const lon = parseFloat(data[0].lon);
+            // Validar que esté dentro de Lima
+            if (lat >= -12.5 && lat <= -11.5 && lon >= -77.5 && lon <= -76.5) {
+              coords = [lat, lon];
+            }
           }
         } catch {}
 
