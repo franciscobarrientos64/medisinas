@@ -131,40 +131,43 @@ export function MapaFarmacias({ resultados, geoPos }) {
     markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
 
-    const primeras = resultados.slice(0, 30);
+    const primeras = resultados.slice(0, 10); // Solo 10 para geocoding rápido
     const precios = primeras.map(r => parseFloat(r.precio2 || r.precio1 || r.precio3)).filter(p => p > 0);
     const minP = Math.min(...precios);
     const maxP = Math.max(...precios);
 
+    const LIMA_BBOX = '-77.5,-12.5,-76.5,-11.5';
+
+    const geocodificar = async (r) => {
+      try {
+        const dir = `${r.direccion || ''}, ${r.distrito || ''}, Lima`;
+        const q = encodeURIComponent(dir);
+        const url = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&countrycodes=pe&viewbox=${LIMA_BBOX}&bounded=1`;
+        const resp = await fetch(url, { headers: { 'User-Agent': 'MediSinas/1.0 info@medisinas.com' }, signal: AbortSignal.timeout(4000) });
+        const data = await resp.json();
+        if (data[0]) {
+          const lat = parseFloat(data[0].lat);
+          const lon = parseFloat(data[0].lon);
+          if (lat >= -12.5 && lat <= -11.5 && lon >= -77.5 && lon <= -76.5) {
+            return [lat, lon];
+          }
+        }
+      } catch {}
+      return null;
+    };
+
     const agregarMarcadores = async () => {
       const bounds = [];
+
+      // Geocodificar las 10 en paralelo (Nominatim permite hasta 1 req/s, usamos timeout)
+      const coordsResults = await Promise.all(primeras.map(geocodificar));
 
       for (let i = 0; i < primeras.length; i++) {
         const r = primeras[i];
         const precio = parseFloat(r.precio2 || r.precio1 || r.precio3);
         if (!precio) continue;
 
-        // Geocodificar con bounding box de Lima para evitar matches fuera de la ciudad
-        // Lima: lat -12.5 a -11.5, lon -77.5 a -76.5
-        const LIMA_BBOX = '-77.5,-12.5,-76.5,-11.5'; // minLon,minLat,maxLon,maxLat
-        let coords = null;
-        try {
-          const dir = `${r.direccion || ''}, ${r.distrito || ''}, Lima`;
-          const q = encodeURIComponent(dir);
-          const url = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&countrycodes=pe&viewbox=${LIMA_BBOX}&bounded=1`;
-          const resp = await fetch(url, { headers: { 'User-Agent': 'MediSinas/1.0 info@medisinas.com' } });
-          const data = await resp.json();
-          if (data[0]) {
-            const lat = parseFloat(data[0].lat);
-            const lon = parseFloat(data[0].lon);
-            // Validar que esté dentro de Lima
-            if (lat >= -12.5 && lat <= -11.5 && lon >= -77.5 && lon <= -76.5) {
-              coords = [lat, lon];
-            }
-          }
-        } catch {}
-
-        // Si geocoding falla — saltamos este marcador (mejor 5 exactos que 30 incorrectos)
+        const coords = coordsResults[i];
         if (!coords) continue;
 
         const color = getPrecioColor(precio, minP, maxP);
@@ -199,8 +202,7 @@ export function MapaFarmacias({ resultados, geoPos }) {
 
         bounds.push(coords);
         markersRef.current.push(marker);
-        // Pequeña pausa para no saturar Nominatim
-        if (i < primeras.length - 1) await new Promise(r => setTimeout(r, 200));
+
       }
 
       if (bounds.length > 0) {
