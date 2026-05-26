@@ -49,11 +49,13 @@ function getDistritoCoords(distrito) {
 
 // Dispersar farmacias alrededor del punto central del distrito
 function dispersarCoordenadas(index, total, centro) {
-  const radio = 0.008 + (Math.floor(index / 8) * 0.004);
-  const angulo = (index * 137.5) * (Math.PI / 180); // espiral áurea
+  // Radio máximo 0.004 grados (~440m) — se mantiene dentro del distrito
+  const radio = 0.001 + (Math.floor(index / 6) * 0.0015);
+  const radioFinal = Math.min(radio, 0.004);
+  const angulo = (index * 137.508) * (Math.PI / 180); // espiral áurea
   return [
-    centro[0] + radio * Math.sin(angulo),
-    centro[1] + radio * Math.cos(angulo),
+    centro[0] + radioFinal * Math.sin(angulo),
+    centro[1] + radioFinal * Math.cos(angulo),
   ];
 }
 
