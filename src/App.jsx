@@ -6,6 +6,7 @@ import { getHistorial, agregarAlHistorial, detectarSintoma, compartirWhatsApp, c
 import { AuthModal, AuthButton, useAuth } from './UserAuth';
 import { MisMedicamentosBtn, MisMedicamentosPanel, guardarMedicamento } from './MisMedicamentos';
 import { MapaFarmacias, ToggleVistaBtn } from './MapaFarmacias';
+import { AlertaBtn, AlertaModal } from './AlertaModal';
 
 const GA_ID = 'G-MZ744SDY8T';
 function gtag(...args) { window.dataLayer = window.dataLayer || []; window.dataLayer.push(args); }
@@ -348,6 +349,8 @@ export default function App() {
   const [savedIds, setSavedIds] = useState(new Set());
   const [mostrarGenericos, setMostrarGenericos] = useState(false);
   const [vista, setVista] = useState('lista'); // 'lista' | 'mapa'
+  const [alertaData, setAlertaData] = useState(null); // { variante, precioActual, distrito }
+  const [alertasActivas, setAlertasActivas] = useState(new Set()); // keys de alertas activas
 
   const [query, setQuery] = useState('');
   const [queryUsuario, setQueryUsuario] = useState('');
@@ -1146,6 +1149,13 @@ export default function App() {
                         <button className="btn-primary" onClick={()=>{setMapSheet(r.direccion+(r.distrito?`, ${r.distrito}`:''));trackEvent('click_directions',{farmacia:r.nombreComercial});}}>📍 Cómo llegar</button>
                         {r.telefono&&<a href={`tel:${r.telefono}`} className="btn-secondary" onClick={()=>trackEvent('click_phone',{farmacia:r.nombreComercial})}>📞 {r.telefono}</a>}
                         <button className="btn-whatsapp" onClick={()=>compartirWhatsApp(r.nombreComercial,parseFloat(precioMostrar).toFixed(2),varianteActiva?.nombreProducto,r.distrito,r.direccion,r.telefono,linkCompra,ecommerce?.nombreCadena,geoPos)}>📲 Compartir precio</button>
+                        <AlertaBtn
+                          activa={alertasActivas.has(`${varianteActiva?.grupo}_${varianteActiva?.codGrupoFF}_${varianteActiva?.concent}`)}
+                          onClick={()=>{
+                            if(!user){setAuthOpen(true);return;}
+                            setAlertaData({variante:varianteActiva,precioActual:parseFloat(precioMostrar),distrito:r.distrito||distActual||null});
+                          }}
+                        />
                         {linkCompra&&<a href={linkCompra} target="_blank" rel="noreferrer" className="btn-ecommerce" style={{background:ecommerce.color,color:ecommerce.textColor}} onClick={()=>trackEvent('click_ecommerce',{farmacia:r.nombreComercial,cadena:ecommerce.nombreCadena,termino:queryUsuario})}>🛒 {ecommerce.label}</a>}
                       </div>
                     </div>
@@ -1201,6 +1211,21 @@ export default function App() {
           open={mismedOpen}
           onClose={() => setMismedOpen(false)}
           onBuscar={(med) => seleccionarVariante(med)}
+        />
+        <AlertaModal
+          open={!!alertaData}
+          onClose={() => setAlertaData(null)}
+          variante={alertaData?.variante}
+          precioActual={alertaData?.precioActual}
+          distrito={alertaData?.distrito}
+          user={user}
+          onSuccess={() => {
+            if (alertaData?.variante) {
+              const key = `${alertaData.variante.grupo}_${alertaData.variante.codGrupoFF}_${alertaData.variante.concent}`;
+              setAlertasActivas(prev => new Set([...prev, key]));
+            }
+            setAlertaData(null);
+          }}
         />
         <AuthModal open={authOpen} onClose={()=>setAuthOpen(false)} onSuccess={(u)=>{ signIn(u); setAuthOpen(false); }} />
       </div>
