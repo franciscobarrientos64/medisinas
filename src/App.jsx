@@ -5,6 +5,7 @@ import { getEcommerceUrl } from './farmacias';
 import { getHistorial, agregarAlHistorial, detectarSintoma, compartirWhatsApp, calcularDistancia, DISCLAIMER_SINTOMA, SINTOMAS } from './utils';
 import { AuthModal, AuthButton, useAuth } from './UserAuth';
 import { MisMedicamentosBtn, MisMedicamentosPanel, guardarMedicamento } from './MisMedicamentos';
+import { MapaFarmacias, ToggleVistaBtn } from './MapaFarmacias';
 
 const GA_ID = 'G-MZ744SDY8T';
 function gtag(...args) { window.dataLayer = window.dataLayer || []; window.dataLayer.push(args); }
@@ -346,6 +347,7 @@ export default function App() {
   const [mismedOpen, setMismedOpen] = useState(false);
   const [savedIds, setSavedIds] = useState(new Set());
   const [mostrarGenericos, setMostrarGenericos] = useState(false);
+  const [vista, setVista] = useState('lista'); // 'lista' | 'mapa'
 
   const [query, setQuery] = useState('');
   const [queryUsuario, setQueryUsuario] = useState('');
@@ -941,8 +943,25 @@ export default function App() {
             </div>
           )}
 
-          {/* Modo rápido toggle */}
+          {/* Toggle Lista / Mapa */}
           {busquedaActiva && filtrados.length > 0 && (
+            <div style={{display:'flex',justifyContent:'flex-end',marginBottom:12}}>
+              <ToggleVistaBtn vista={vista} onChange={setVista}/>
+            </div>
+          )}
+
+          {/* Vista Mapa */}
+          {busquedaActiva && vista === 'mapa' && filtrados.length > 0 && (
+            <MapaFarmacias
+              resultados={filtrados}
+              geocacheRef={geocacheRef}
+              geoPos={geoPos}
+              varianteActiva={varianteActiva}
+            />
+          )}
+
+          {/* Modo rápido toggle */}
+          {busquedaActiva && filtrados.length > 0 && vista === 'lista' && (
             <div className="modo-rapido-bar" onClick={()=>setModoRapido(!modoRapido)}>
               <div>
                 <div className="modo-rapido-label">⚡ Modo rápido</div>
