@@ -498,45 +498,70 @@ export default function App() {
     setResultados(todos); setLoading(false);
   }, []);
 
+  // Caché de autocomplete — evita llamadas repetidas a DIGEMID
+  const autocompleteCache = useRef({});
+
+  const ordenarVariantes = (vars) => {
+    const seen = new Set();
+    const unique = vars.filter(v => {
+      const k = `${v.grupo}_${v.codGrupoFF}_${v.concent}`;
+      if (seen.has(k)) return false; seen.add(k); return true;
+    });
+    const fb = ['TABLETA','CAPSULA','COMPRIMIDO','GRAGEA'];
+    const fc = ['INYECTABLE','SOLUCION','SUSPENSION','JARABE','AMPOLLA'];
+    return [...unique].sort((a,b) => {
+      const av = fb.some(f=>a.nombreFormaFarmaceutica?.toUpperCase().includes(f)) ? 0
+               : fc.some(f=>a.nombreFormaFarmaceutica?.toUpperCase().includes(f)) ? 2 : 1;
+      const bv = fb.some(f=>b.nombreFormaFarmaceutica?.toUpperCase().includes(f)) ? 0
+               : fc.some(f=>b.nombreFormaFarmaceutica?.toUpperCase().includes(f)) ? 2 : 1;
+      if (av !== bv) return av - bv;
+      return (parseFloat((a.concent||'0').replace(',','.'))||0) -
+             (parseFloat((b.concent||'0').replace(',','.'))||0);
+    }).slice(0, 10);
+  };
+
+  const buscarConRetry = async (val, intentos = 3) => {
+    for (let i = 0; i < intentos; i++) {
+      try {
+        const vars = await buscarVariantes(val);
+        if (vars && vars.length > 0) return vars;
+        if (i < intentos - 1) await new Promise(r => setTimeout(r, 600 * (i + 1)));
+      } catch(err) {
+        if (i < intentos - 1) await new Promise(r => setTimeout(r, 600 * (i + 1)));
+      }
+    }
+    return [];
+  };
+
   const handleQueryChange = useCallback(e => {
     const val = e.target.value;
     setQuery(val); setQueryUsuario(val);
     clearTimeout(debounceRef.current);
 
-    // Detectar síntoma inmediatamente
     const sint = detectarSintoma(val);
     setSintomaDetectado(sint);
 
     if (val.length < 3) { setSugerencias([]); return; }
 
-    // Siempre buscar en DIGEMID con debounce (incluso si hay síntoma detectado,
-    // para mostrar también opciones reales del catálogo)
     debounceRef.current = setTimeout(async () => {
       try {
-        const vars = await buscarVariantes(val);
+        // Usar caché si existe (válido por 5 min)
+        const cacheKey = val.toLowerCase().trim();
+        const cached = autocompleteCache.current[cacheKey];
+        if (cached && Date.now() - cached.ts < 300000) {
+          setSugerencias(cached.data);
+          return;
+        }
+        const vars = await buscarConRetry(val);
         if (!vars || vars.length === 0) { setSugerencias([]); return; }
-        const seen = new Set();
-        const unique = vars.filter(v => {
-          const k = `${v.grupo}_${v.codGrupoFF}_${v.concent}`;
-          if (seen.has(k)) return false; seen.add(k); return true;
-        });
-        const fb = ['TABLETA','CAPSULA','COMPRIMIDO','GRAGEA'];
-        const fc = ['INYECTABLE','SOLUCION','SUSPENSION','JARABE','AMPOLLA'];
-        const ord = [...unique].sort((a,b) => {
-          const av = fb.some(f=>a.nombreFormaFarmaceutica?.toUpperCase().includes(f)) ? 0
-                   : fc.some(f=>a.nombreFormaFarmaceutica?.toUpperCase().includes(f)) ? 2 : 1;
-          const bv = fb.some(f=>b.nombreFormaFarmaceutica?.toUpperCase().includes(f)) ? 0
-                   : fc.some(f=>b.nombreFormaFarmaceutica?.toUpperCase().includes(f)) ? 2 : 1;
-          if (av !== bv) return av - bv;
-          return (parseFloat((a.concent||'0').replace(',','.'))||0) -
-                 (parseFloat((b.concent||'0').replace(',','.'))||0);
-        });
-        setSugerencias(ord.slice(0, 10));
+        const ord = ordenarVariantes(vars);
+        autocompleteCache.current[cacheKey] = { data: ord, ts: Date.now() };
+        setSugerencias(ord);
       } catch(err) {
         console.error('buscarVariantes error:', err);
         setSugerencias([]);
       }
-    }, 350);
+    }, 400);
   }, []);
 
   const seleccionarVariante = useCallback(async (variante, esSintoma = false) => {
@@ -818,6 +843,7 @@ export default function App() {
                   placeholder="¿Qué medicamento o síntoma buscas? Ej: omeprazol, dolor de cabeza..."
                   value={query} onChange={handleQueryChange}
                   onKeyDown={e=>{if(e.key==='Escape'){ setSugerencias([]); setSintomaDetectado(null); }}}
+                  onFocus={()=>{ if(busquedaActiva){ setQuery(''); setQueryUsuario(''); setSugerencias([]); } }}
                   autoComplete="off"/>
                 <button className="search-btn"
                   onMouseDown={e=>e.preventDefault()}
