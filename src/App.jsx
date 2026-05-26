@@ -3,7 +3,7 @@ import { buscarVariantes, consultarPrecios } from './digemidApi';
 import { UBIGEOS, getZona } from './ubigeos';
 import { getEcommerceUrl } from './farmacias';
 import { getHistorial, agregarAlHistorial, detectarSintoma, compartirWhatsApp, calcularDistancia, DISCLAIMER_SINTOMA, SINTOMAS } from './utils';
-import { AuthModal, AuthButton, useAuth } from './UserAuth';
+import { AuthModal, AuthButton, ProfileSheet, useAuth } from './UserAuth';
 import { MisMedicamentosBtn, MisMedicamentosPanel, guardarMedicamento } from './MisMedicamentos';
 import { MapaFarmacias, ToggleVistaBtn } from './MapaFarmacias';
 import { AlertaBtn, AlertaModal } from './AlertaModal';
@@ -345,6 +345,7 @@ function MapSheet({ direccion, onClose, geoPos }) {
 export default function App() {
   const { user, signOut, signIn } = useAuth();
   const [authOpen, setAuthOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [mismedOpen, setMismedOpen] = useState(false);
   const [savedIds, setSavedIds] = useState(new Set());
   const [mostrarGenericos, setMostrarGenericos] = useState(false);
@@ -788,7 +789,7 @@ export default function App() {
           <div className="header-right" style={{display:'flex',alignItems:'center',gap:'14px'}}>
             <div className="live-badge"><div className="live-dot"/>Precios en vivo</div>
             <MisMedicamentosBtn user={user} onClick={() => setMismedOpen(true)} />
-            <AuthButton user={user} onOpen={() => setAuthOpen(true)} onSignOut={signOut} onMisMeds={() => setMismedOpen(true)} />
+            <AuthButton user={user} onOpen={() => setAuthOpen(true)} onProfileOpen={() => setProfileOpen(true)} />
           </div>
         </header>
 
@@ -1252,6 +1253,13 @@ export default function App() {
             }
             setAlertaData(null);
           }}
+        />
+        <ProfileSheet
+          open={profileOpen}
+          onClose={() => setProfileOpen(false)}
+          user={user}
+          onSignOut={() => { signOut(); setProfileOpen(false); }}
+          onMisMeds={() => { setProfileOpen(false); setMismedOpen(true); }}
         />
         <AuthModal open={authOpen} onClose={()=>setAuthOpen(false)} onSuccess={(u)=>{ signIn(u); setAuthOpen(false); }} />
       </div>
