@@ -3,7 +3,7 @@ const { createClient } = require("@supabase/supabase-js");
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
 
-  const { userId, nombre, apellido, anio_nacimiento, genero, condiciones } = req.body;
+  const { userId, nombre, apellido, anio_nacimiento, genero, email } = req.body;
   if (!userId) return res.status(400).json({ error: "userId requerido" });
 
   const supabase = createClient(
@@ -13,7 +13,7 @@ module.exports = async function handler(req, res) {
 
   const { error } = await supabase
     .from("usuarios")
-    .update({ nombre, apellido, anio_nacimiento, genero, condiciones })
+    .update({ nombre, apellido, anio_nacimiento, genero, email: email || null })
     .eq("id", userId);
 
   if (error) {

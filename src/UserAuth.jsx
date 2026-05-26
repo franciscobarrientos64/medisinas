@@ -30,6 +30,7 @@ export function AuthModal({ open, onClose, onSuccess }) {
   const [phone, setPhone]             = useState('');
   const [otp, setOtp]                 = useState(['','','','','','']);
   const [nombre, setNombre]           = useState('');
+  const [email, setEmail]             = useState('');
   const [apellido, setApellido]       = useState('');
   const [anio, setAnio]               = useState('');
   const [genero, setGenero]           = useState('');
@@ -120,11 +121,13 @@ export function AuthModal({ open, onClose, onSuccess }) {
     const anioNum = parseInt(anio);
     if (!anio || anioNum < 1920 || anioNum > 2010) { setError('Ingresa un año de nacimiento válido (ej: 1978).'); return; }
     if (!genero) { setError('Selecciona tu género.'); return; }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setError('Ingresa un email válido.'); return; }
     setLoading(true);
     const perfil = {
       nombre: nombre.trim(),
       apellido: apellido.trim() || null,
       anio_nacimiento: anio ? anioNum : null,
+      email: email.trim() || null,
       genero: genero || null,
 
     };
@@ -239,6 +242,10 @@ export function AuthModal({ open, onClose, onSuccess }) {
 
           <input style={{...nameInput}} type="number" placeholder="Año de nacimiento * (ej: 1978)"
             min="1920" max="2010" value={anio} onChange={e => setAnio(e.target.value)}/>
+
+          <input style={{...nameInput}} type="email" inputMode="email"
+            placeholder="Tu email para alertas de precio (opcional)"
+            value={email} onChange={e => setEmail(e.target.value)}/>
 
           <p style={{fontSize:12,color:'#6B7280',marginBottom:8,fontWeight:600}}>Género *</p>
           <div style={{display:'flex',gap:8,marginBottom:14}}>
