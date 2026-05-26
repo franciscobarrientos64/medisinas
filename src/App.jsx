@@ -8,6 +8,7 @@ import { MisMedicamentosBtn, MisMedicamentosPanel, guardarMedicamento } from './
 import { GuardarMedModal } from './GuardarMedModal';
 import { MapaFarmacias, ToggleVistaBtn } from './MapaFarmacias';
 import { AlertaBtn, AlertaModal } from './AlertaModal';
+import { HorarioBadge } from './HorarioBadge';
 
 const GA_ID = 'G-MZ744SDY8T';
 function gtag(...args) { window.dataLayer = window.dataLayer || []; window.dataLayer.push(args); }
@@ -354,6 +355,8 @@ export default function App() {
   const [alertaData, setAlertaData] = useState(null); // { variante, precioActual, distrito }
   const [guardarData, setGuardarData] = useState(null); // variante a guardar
   const [alertasActivas, setAlertasActivas] = useState(new Set()); // keys de alertas activas
+  const horariosCache = React.useRef({}); // cache de horarios en memoria
+  const [horariosVisible, setHorariosVisible] = useState({}); // horarios cargados por farmacia
 
   const [query, setQuery] = useState('');
   const [queryUsuario, setQueryUsuario] = useState('');
@@ -1177,6 +1180,7 @@ export default function App() {
                         {distKm!==null&&<span className="badge badge-dist-km">📍 {distKm.toFixed(1)} km</span>}
                         {ecommerce&&<span className="badge badge-online">🛒 Online</span>}
                       </div>
+                      <HorarioBadge nombreComercial={r.nombreComercial} distrito={r.distrito} horariosVisible={horariosVisible} setHorariosVisible={setHorariosVisible} horariosCache={horariosCache}/>
                       <div className="card-addr">📍 {r.direccion}</div>
                       <div className="card-meta">
                         {r.fecha&&<span>🗓 {r.fecha.split(' ')[0]}</span>}
