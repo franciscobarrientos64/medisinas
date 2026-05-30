@@ -123,7 +123,7 @@ export function MapaFarmacias({ resultados, geoPos }) {
     return () => { mounted = false; };
   }, []);
 
-  // Agregar marcadores — geocoding real para las primeras 30
+  // Agregar marcadores — geocoding server-side con caché Supabase
   useEffect(() => {
     if (!listo || !leafletMap.current || !resultados.length) return;
     const L = window.L;
@@ -131,44 +131,41 @@ export function MapaFarmacias({ resultados, geoPos }) {
     markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
 
-    const primeras = resultados.slice(0, 10); // Solo 10 para geocoding rápido
+    // Centrar en GPS inmediatamente sin esperar geocoding
+    if (geoPos) {
+      leafletMap.current.setView([geoPos.lat, geoPos.lon], 14);
+    }
+
+    const primeras = resultados.slice(0, 15);
     const precios = primeras.map(r => parseFloat(r.precio2 || r.precio1 || r.precio3)).filter(p => p > 0);
     const minP = Math.min(...precios);
     const maxP = Math.max(...precios);
 
-    const LIMA_BBOX = '-77.5,-12.5,-76.5,-11.5';
-
-    const geocodificar = async (r) => {
-      try {
-        const dir = `${r.direccion || ''}, ${r.distrito || ''}, Lima`;
-        const q = encodeURIComponent(dir);
-        const url = `https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&countrycodes=pe&viewbox=${LIMA_BBOX}&bounded=1`;
-        const resp = await fetch(url, { headers: { 'User-Agent': 'MediSinas/1.0 info@medisinas.com' }, signal: AbortSignal.timeout(4000) });
-        const data = await resp.json();
-        if (data[0]) {
-          const lat = parseFloat(data[0].lat);
-          const lon = parseFloat(data[0].lon);
-          if (lat >= -12.5 && lat <= -11.5 && lon >= -77.5 && lon <= -76.5) {
-            return [lat, lon];
-          }
-        }
-      } catch {}
-      return null;
-    };
-
     const agregarMarcadores = async () => {
       const bounds = [];
 
-      // Geocodificar las 10 en paralelo (Nominatim permite hasta 1 req/s, usamos timeout)
-      const coordsResults = await Promise.all(primeras.map(geocodificar));
+      // Geocodificar en el servidor (con caché Supabase)
+      let coordsResults = [];
+      try {
+        const resp = await fetch('/api/geocode', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            farmacias: primeras.map(r => ({ direccion: r.direccion, distrito: r.distrito }))
+          }),
+        });
+        const data = await resp.json();
+        coordsResults = data.coords || [];
+      } catch { return; }
 
       for (let i = 0; i < primeras.length; i++) {
         const r = primeras[i];
         const precio = parseFloat(r.precio2 || r.precio1 || r.precio3);
         if (!precio) continue;
 
-        const coords = coordsResults[i];
-        if (!coords) continue;
+        const c = coordsResults[i];
+        if (!c) continue;
+        const coords = [c.lat, c.lon];
 
         const color = getPrecioColor(precio, minP, maxP);
         const esMinimo = precio === minP;
@@ -245,7 +242,7 @@ export function MapaFarmacias({ resultados, geoPos }) {
         borderRadius:20,padding:'5px 14px',fontSize:11,fontWeight:500,
         whiteSpace:'nowrap',
       }}>
-        Geocodificando las primeras 30 de {resultados.length} farmacias...
+        Mostrando {Math.min(15, resultados.length)} de {resultados.length} farmacias
       </div>
 
       <div ref={mapRef} style={{width:'100%',height:'430px',borderRadius:12,zIndex:1}}/>
