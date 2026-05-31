@@ -367,7 +367,7 @@ export function AuthButton({ user, onOpen, onProfileOpen }) {
 }
 
 // Sheet de perfil — se renderiza en App.jsx (fuera del header)
-export function ProfileSheet({ open, onClose, user, onSignOut, onMisMeds }) {
+export function ProfileSheet({ open, onClose, user, onSignOut, onMisMeds, onRecetas }) {
   if (!open || !user) return null;
   document.body.style.overflow = 'hidden';
   const handleClose = () => { document.body.style.overflow = ''; onClose(); };
@@ -390,6 +390,9 @@ export function ProfileSheet({ open, onClose, user, onSignOut, onMisMeds }) {
         <div style={psDivider}/>
         <button style={psItem} onClick={() => { handleClose(); onMisMeds?.(); }}>
           <span style={{fontSize:22}}>💊</span><span>Mis medicamentos</span>
+        </button>
+        <button style={psItem} onClick={() => { handleClose(); onRecetas?.(); }}>
+          <span style={{fontSize:22}}>📋</span><span>Mis recetas</span>
         </button>
         <button style={psItem} onClick={handleClose}>
           <span style={{fontSize:22}}>🔔</span><span>Mis alertas</span>

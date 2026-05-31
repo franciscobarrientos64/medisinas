@@ -6,6 +6,7 @@ import { getHistorial, agregarAlHistorial, detectarSintoma, compartirWhatsApp, c
 import { AuthModal, AuthButton, ProfileSheet, useAuth } from './UserAuth';
 import { MisMedicamentosBtn, MisMedicamentosPanel, guardarMedicamento } from './MisMedicamentos';
 import { GuardarMedModal } from './GuardarMedModal';
+import { RecetasPanel } from './RecetasPanel';
 import { MapaFarmacias, ToggleVistaBtn } from './MapaFarmacias';
 import { AlertaBtn, AlertaModal } from './AlertaModal';
 import { HorarioBadge } from './HorarioBadge';
@@ -356,6 +357,7 @@ export default function App() {
   const [filtroAbierto, setFiltroAbierto] = useState(false);
   const [alertaData, setAlertaData] = useState(null); // { variante, precioActual, distrito }
   const [guardarData, setGuardarData] = useState(null); // variante a guardar
+  const [recetasOpen, setRecetasOpen] = useState(false);
   const [alertasActivas, setAlertasActivas] = useState(new Set()); // keys de alertas activas
   const horariosCache = React.useRef({}); // cache de horarios en memoria
   const [horariosVisible, setHorariosVisible] = useState({}); // horarios cargados por farmacia
@@ -1290,6 +1292,7 @@ export default function App() {
           user={user}
           onSignOut={() => { signOut(); setProfileOpen(false); }}
           onMisMeds={() => { setProfileOpen(false); setMismedOpen(true); }}
+          onRecetas={() => { setProfileOpen(false); setRecetasOpen(true); }}
         />
         <GuardarMedModal
           open={!!guardarData}
@@ -1302,6 +1305,11 @@ export default function App() {
             }
             setGuardarData(null);
           }}
+        />
+        <RecetasPanel
+          open={recetasOpen}
+          onClose={() => setRecetasOpen(false)}
+          user={user}
         />
         <AuthModal open={authOpen} onClose={()=>setAuthOpen(false)} onSuccess={(u)=>{ signIn(u); setAuthOpen(false); }} />
       </div>
