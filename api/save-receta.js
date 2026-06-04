@@ -4,7 +4,7 @@ module.exports = async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
 
   const {
-    userId, foto_url, medicamentos, doctor_nombre, especialidad,
+    userId, foto_url, foto_path, medicamentos, doctor_nombre, especialidad,
     fecha_emision, fecha_vencimiento, diagnostico,
     periodicidad, cantidad_por_periodo, notas,
   } = req.body;
@@ -20,6 +20,7 @@ module.exports = async function handler(req, res) {
     .insert({
       usuario_id: userId,
       foto_url: foto_url || null,
+      foto_path: foto_path || null,
       medicamentos,
       doctor_nombre: doctor_nombre || null,
       especialidad: especialidad || null,

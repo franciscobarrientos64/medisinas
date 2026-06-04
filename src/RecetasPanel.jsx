@@ -240,14 +240,15 @@ function NuevaReceta({ user, onSuccess, onCancel }) {
   }
 
   async function subirFoto() {
-    if (!foto) return null;
+    if (!foto) return { url: null, path: null };
     try {
       const ext = foto.name.split('.').pop();
-      const path = `recetas/${user.id}/${Date.now()}.${ext}`;
-      const { error } = await supabase.storage.from('recetas').upload(path, foto, { contentType: foto.type });
-      if (error) return null;
-      const { data } = supabase.storage.from('recetas').getPublicUrl(path);
-      return data.publicUrl;
+      const path = `${user.id}/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from('recetas-medicas').upload(path, foto, { contentType: foto.type });
+      if (error) return { url: null, path: null };
+      const { data, error: signErr } = await supabase.storage.from('recetas-medicas').createSignedUrl(path, 3600);
+      if (signErr) return { url: null, path };
+      return { url: data.signedUrl, path };
     } catch { return null; }
   }
 
@@ -256,13 +257,14 @@ function NuevaReceta({ user, onSuccess, onCancel }) {
     if (!meds.length) { setError('Agrega al menos un medicamento.'); return; }
     setLoading(true); setError('');
     try {
-      const foto_url = await subirFoto();
+      const fotoResult = foto ? await subirFoto() : { url: null, path: null };
       const res = await fetch('/api/save-receta', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: user.id,
-          foto_url,
+          foto_url: fotoResult?.url || null,
+          foto_path: fotoResult?.path || null,
           medicamentos: meds,
           doctor_nombre: doctor || null,
           especialidad: especialidad || null,
