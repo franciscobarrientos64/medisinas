@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { buscarVariantes, consultarPrecios } from "../digemidApi";
 import { getLocalUser } from "../UserAuth";
-import { DISTRITOS, fmt, precioDe, BadgeHorario } from "./Resultados";
+import { fmt, precioDe, BadgeHorario } from "./Resultados";
 
 // Mini gráfico de líneas (precio mínimo en el tiempo) sin librerías.
 function SparkLine({ puntos }) {
@@ -24,24 +24,26 @@ function SparkLine({ puntos }) {
       </defs>
       <path d={area} fill="url(#g)" />
       <path d={d} fill="none" stroke="#3c51c2" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
-      {puntos.map((p, i) => (
-        <circle key={i} cx={x(i)} cy={y(p.precio_min)} r="3" fill="#3c51c2" />
-      ))}
+      {puntos.map((p, i) => (<circle key={i} cx={x(i)} cy={y(p.precio_min)} r="3" fill="#3c51c2" />))}
     </svg>
   );
 }
 
 export default function Detalle({ params = {}, go, activePersona }) {
-  const { variante: vIni, distrito: dIni } = params;
+  const { variante: vIni, loc } = params;
   const [variante, setVariante] = useState(vIni || null);
   const [concentraciones, setConcentraciones] = useState([]);
-  const [distrito] = useState(dIni || "Todos Lima");
   const [registros, setRegistros] = useState([]);
   const [loading, setLoading] = useState(false);
   const [historial, setHistorial] = useState([]);
   const [msg, setMsg] = useState("");
 
-  // Variantes por concentración del mismo producto
+  const dep = loc?.dep ?? 15;
+  const prov = loc?.prov ?? 1501;
+  const ubigeo = loc?.ubigeo ?? null;
+  const distritoEspecifico = loc?.distrito && loc.distrito !== "Todos los distritos" ? loc.distrito : null;
+  const zonaTxt = loc ? (distritoEspecifico ? `${loc.ciudad} · ${loc.distrito}` : (loc.ciudad || loc.region || "Todo el Perú")) : "Lima";
+
   useEffect(() => {
     if (!vIni?.nombreProducto) return;
     buscarVariantes(vIni.nombreProducto.split(" ")[0]).then((vars) => {
@@ -50,33 +52,25 @@ export default function Detalle({ params = {}, go, activePersona }) {
     });
   }, [vIni]);
 
-  const cargarPrecios = useCallback(
-    async (vari) => {
-      if (!vari) return;
-      setLoading(true);
-      const { dep, prov, ubigeo } = DISTRITOS[distrito] || DISTRITOS["Todos Lima"];
-      const { registros: regs } = await consultarPrecios(vari.grupo, vari.codGrupoFF, vari.concent, ubigeo, dep, prov, 1, 60);
-      regs.sort((a, b) => (precioDe(a) || 1e9) - (precioDe(b) || 1e9));
-      setRegistros(regs);
-      setLoading(false);
-    },
-    [distrito]
-  );
+  const cargarPrecios = useCallback(async (vari) => {
+    if (!vari) return;
+    setLoading(true);
+    const { registros: regs } = await consultarPrecios(vari.grupo, vari.codGrupoFF, vari.concent, ubigeo, dep, prov, 1, 60);
+    regs.sort((a, b) => (precioDe(a) || 1e9) - (precioDe(b) || 1e9));
+    setRegistros(regs);
+    setLoading(false);
+  }, [dep, prov, ubigeo]);
 
   useEffect(() => { if (variante) cargarPrecios(variante); }, [variante, cargarPrecios]);
 
-  // Historial de precios
   useEffect(() => {
     if (!variante) return;
     const qs = new URLSearchParams({
-      grupo: variante.grupo,
-      cod_grupo_ff: String(variante.codGrupoFF),
-      concent: variante.concent || "",
-      ...(distrito !== "Todos Lima" ? { distrito } : {}),
-      dias: "90",
+      grupo: variante.grupo, cod_grupo_ff: String(variante.codGrupoFF), concent: variante.concent || "",
+      ...(distritoEspecifico ? { distrito: distritoEspecifico } : {}), dias: "90",
     });
     fetch(`/api/data?action=historial-precios&${qs}`).then((r) => r.json()).then((d) => setHistorial(d.historial || [])).catch(() => {});
-  }, [variante, distrito]);
+  }, [variante, distritoEspecifico]);
 
   const { minP, maxP, ahorro } = useMemo(() => {
     const precios = registros.map(precioDe).filter((p) => p > 0);
@@ -102,7 +96,7 @@ export default function Detalle({ params = {}, go, activePersona }) {
     const objetivo = minP ? Math.round(minP * 0.9 * 100) / 100 : null;
     const res = await fetch("/api/data?action=save-alerta", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId: user.id, nombre_producto: variante.nombreProducto, concent: variante.concent, grupo: variante.grupo, cod_grupo_ff: String(variante.codGrupoFF), precio_objetivo: objetivo, distrito: distrito === "Todos Lima" ? null : distrito }),
+      body: JSON.stringify({ userId: user.id, nombre_producto: variante.nombreProducto, concent: variante.concent, grupo: variante.grupo, cod_grupo_ff: String(variante.codGrupoFF), precio_objetivo: objetivo, distrito: distritoEspecifico }),
     }).then((r) => r.json());
     setMsg(res.success ? `✓ Alerta creada (te avisamos si baja de ${fmt(objetivo)})` : "No se pudo crear la alerta");
     setTimeout(() => setMsg(""), 3000);
@@ -119,12 +113,16 @@ export default function Detalle({ params = {}, go, activePersona }) {
 
   return (
     <div className="px-margin-page py-10 max-w-6xl mx-auto">
-      <button onClick={() => go("resultados", { query: variante.nombreProducto })} className="flex items-center gap-2 text-on-surface-variant hover:text-primary mb-6 text-body-sm">
-        <span className="material-symbols-outlined text-[20px]">arrow_back</span> Volver a resultados
-      </button>
+      <div className="flex items-center justify-between gap-4 mb-6">
+        <button onClick={() => go("resultados", { query: variante.nombreProducto, loc })} className="flex items-center gap-2 text-on-surface-variant hover:text-primary text-body-sm">
+          <span className="material-symbols-outlined text-[20px]">arrow_back</span> Volver a resultados
+        </button>
+        <button onClick={() => go("home")} className="flex items-center gap-2 text-primary font-bold text-body-sm hover:underline">
+          <span className="material-symbols-outlined text-[20px]">search</span> Nueva búsqueda
+        </button>
+      </div>
 
       <div className="flex flex-col lg:flex-row gap-10">
-        {/* Columna izquierda */}
         <div className="lg:w-[40%] lg:sticky lg:top-24 self-start space-y-6">
           <div>
             <h1 className="font-display-lg text-display-lg text-on-surface leading-tight">{variante.nombreProducto}</h1>
@@ -141,49 +139,30 @@ export default function Detalle({ params = {}, go, activePersona }) {
             </div>
           )}
 
-          {/* Resumen de precios */}
           <div className="clinical-card rounded-lg p-6 clinical-shadow">
             <div className="grid grid-cols-3 gap-2 text-center">
-              <div>
-                <span className="block text-label-caps text-on-surface-variant uppercase mb-1">Más barato</span>
-                <span className="text-[28px] font-bold text-primary leading-none">{minP ? fmt(minP) : "—"}</span>
-              </div>
-              <div>
-                <span className="block text-label-caps text-on-surface-variant uppercase mb-1">Más caro</span>
-                <span className="text-[28px] font-bold text-on-surface-variant leading-none">{maxP ? fmt(maxP) : "—"}</span>
-              </div>
-              <div>
-                <span className="block text-label-caps text-on-surface-variant uppercase mb-1">Ahorras</span>
-                <span className="text-[28px] font-bold text-secondary leading-none">{ahorro ? fmt(ahorro) : "—"}</span>
-              </div>
+              <div><span className="block text-label-caps text-on-surface-variant uppercase mb-1">Más barato</span><span className="text-[28px] font-bold text-primary leading-none">{minP ? fmt(minP) : "—"}</span></div>
+              <div><span className="block text-label-caps text-on-surface-variant uppercase mb-1">Más caro</span><span className="text-[28px] font-bold text-on-surface-variant leading-none">{maxP ? fmt(maxP) : "—"}</span></div>
+              <div><span className="block text-label-caps text-on-surface-variant uppercase mb-1">Ahorras</span><span className="text-[28px] font-bold text-secondary leading-none">{ahorro ? fmt(ahorro) : "—"}</span></div>
             </div>
-            <p className="text-body-sm text-on-surface-variant text-center mt-3">Comparado en {registros.length} farmacias de {distrito}.</p>
+            <p className="text-body-sm text-on-surface-variant text-center mt-3">Comparado en {registros.length} farmacias de {zonaTxt}.</p>
           </div>
 
           <div className="flex flex-col gap-3">
-            <button onClick={guardarMed} className="w-full py-4 bg-primary text-white font-bold rounded-full hover:bg-primary-container transition-all active:scale-95 flex items-center justify-center gap-2">
-              <span className="material-symbols-outlined">add</span> Guardar en mis medicinas
-            </button>
-            <button onClick={crearAlerta} className="w-full py-4 border-2 border-primary text-primary font-bold rounded-full hover:bg-primary/5 transition-all active:scale-95 flex items-center justify-center gap-2">
-              <span className="material-symbols-outlined">notifications</span> Crear alerta de precio
-            </button>
+            <button onClick={guardarMed} className="w-full py-4 bg-primary text-white font-bold rounded-full hover:bg-primary-container transition-all active:scale-95 flex items-center justify-center gap-2"><span className="material-symbols-outlined">add</span> Guardar en mis medicinas</button>
+            <button onClick={crearAlerta} className="w-full py-4 border-2 border-primary text-primary font-bold rounded-full hover:bg-primary/5 transition-all active:scale-95 flex items-center justify-center gap-2"><span className="material-symbols-outlined">notifications</span> Crear alerta de precio</button>
             {msg && <p className="text-center text-body-sm text-green-700">{msg}</p>}
           </div>
         </div>
 
-        {/* Columna derecha */}
         <div className="lg:w-[60%] space-y-8">
-          {/* Historial */}
           <div className="clinical-card rounded-lg p-6 clinical-shadow">
             <h2 className="font-headline-lg text-headline-lg-mobile text-on-surface mb-1">Historial de precio</h2>
-            <p className="text-body-sm text-on-surface-variant mb-4">Precio más bajo en {distrito}, últimos 90 días.</p>
+            <p className="text-body-sm text-on-surface-variant mb-4">Precio más bajo en {zonaTxt}, últimos 90 días.</p>
             {historial.length >= 2 ? (
               <>
                 <SparkLine puntos={historial} />
-                <div className="flex justify-between text-label-caps text-on-surface-variant mt-2">
-                  <span>{historial[0].fecha}</span>
-                  <span>{historial[historial.length - 1].fecha}</span>
-                </div>
+                <div className="flex justify-between text-label-caps text-on-surface-variant mt-2"><span>{historial[0].fecha}</span><span>{historial[historial.length - 1].fecha}</span></div>
               </>
             ) : (
               <div className="flex items-center gap-3 text-on-surface-variant py-6">
@@ -193,7 +172,6 @@ export default function Detalle({ params = {}, go, activePersona }) {
             )}
           </div>
 
-          {/* Dónde comprarlo */}
           <div>
             <h2 className="font-headline-lg text-headline-lg-mobile text-on-surface mb-4">Dónde comprarlo</h2>
             {loading && <p className="text-on-surface-variant text-body-sm">Cargando farmacias…</p>}

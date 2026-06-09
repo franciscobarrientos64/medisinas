@@ -47,7 +47,7 @@ export default function AppV2() {
   let screen;
   switch (route.name) {
     case "home": screen = <Home go={go} activePersona={activePersona} />; break;
-    case "resultados": screen = <Resultados query={route.params.query} go={go} activePersona={activePersona} />; break;
+    case "resultados": screen = <Resultados query={route.params.query} loc={route.params.loc} variante={route.params.variante} go={go} activePersona={activePersona} />; break;
     case "detalle": screen = <Detalle params={route.params} go={go} activePersona={activePersona} />; break;
     case "ahorro": screen = <Ahorro go={go} personas={personas} />; break;
     case "familia": screen = <Familia go={go} personas={personas} onRefresh={refreshPersonas} />; break;

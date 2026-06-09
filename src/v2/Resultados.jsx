@@ -3,7 +3,7 @@ import { buscarVariantes, consultarPrecios } from "../digemidApi";
 import { getEstadoFarmacia } from "../horarios";
 import { getLocalUser } from "../UserAuth";
 
-// Distritos con su ubigeo (zona = distrito). Set inicial; se ampliará con UBIGEOS completo.
+// Fallback de distritos de Lima (se usa solo si no llega ubicación desde el Home).
 export const DISTRITOS = {
   "Todos Lima": { dep: 15, prov: 1501, ubigeo: null },
   Miraflores: { dep: 15, prov: 1501, ubigeo: 150122 },
@@ -31,87 +31,68 @@ export function BadgeHorario({ nombre, setcodigo }) {
   );
 }
 
-export default function Resultados({ query, go, activePersona }) {
-  const [variante, setVariante] = useState(null);
+export default function Resultados({ query, go, activePersona, loc, variante: preVariante }) {
+  const [variante, setVariante] = useState(preVariante || null);
   const [resultados, setResultados] = useState([]);
   const [loading, setLoading] = useState(false);
   const [buscado, setBuscado] = useState(false);
-  const [distrito, setDistrito] = useState("Todos Lima");
   const [sortBy, setSortBy] = useState("precio");
   const [soloAbiertas, setSoloAbiertas] = useState(false);
 
+  const dep = loc?.dep ?? 15;
+  const prov = loc?.prov ?? 1501;
+  const ubigeo = loc?.ubigeo ?? null;
+  const distritoEspecifico = loc?.distrito && loc.distrito !== "Todos los distritos" ? loc.distrito : null;
+  const zonaTxt = loc ? (distritoEspecifico ? `${loc.ciudad} · ${loc.distrito}` : (loc.ciudad || loc.region || "Todo el Perú")) : "Todos Lima";
+
   const registrarBusqueda = useCallback(
-    (vari, dist, precios) => {
+    (vari, precios) => {
       const user = getLocalUser();
       if (!user?.id || precios.length < 2) return;
       fetch("/api/data?action=registrar-busqueda", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: user.id,
-          persona_id: activePersona?.id || null,
-          distrito: dist === "Todos Lima" ? null : dist,
-          medicamento: {
-            nombreProducto: vari.nombreProducto,
-            concent: vari.concent,
-            grupo: vari.grupo,
-            codGrupoFF: vari.codGrupoFF,
-          },
+          userId: user.id, persona_id: activePersona?.id || null, distrito: distritoEspecifico,
+          medicamento: { nombreProducto: vari.nombreProducto, concent: vari.concent, grupo: vari.grupo, codGrupoFF: vari.codGrupoFF },
           precios,
         }),
       }).catch(() => {});
     },
-    [activePersona]
+    [activePersona, distritoEspecifico]
   );
 
-  const buscar = useCallback(
-    async (termino, dist) => {
-      const q = (termino || "").trim();
-      const d = dist || distrito;
-      if (!q) return;
-      setLoading(true);
-      setBuscado(true);
-      setResultados([]);
-      try {
-        const vars = await buscarVariantes(q);
-        const vari = vars[0];
-        if (!vari) {
-          setVariante(null);
-          setLoading(false);
-          return;
-        }
-        setVariante(vari);
-        const { dep, prov, ubigeo } = DISTRITOS[d] || DISTRITOS["Todos Lima"];
-        const { registros } = await consultarPrecios(vari.grupo, vari.codGrupoFF, vari.concent, ubigeo, dep, prov, 1, 100);
-        setResultados(registros);
-        const precios = registros.map(precioDe).filter((p) => p > 0);
-        registrarBusqueda(vari, d, precios);
-      } catch (e) {
-        console.error("buscar error:", e);
+  const buscar = useCallback(async () => {
+    if (!query) return;
+    setLoading(true);
+    setBuscado(true);
+    setResultados([]);
+    try {
+      let vari = preVariante;
+      if (!vari) {
+        const vars = await buscarVariantes(query);
+        vari = vars[0];
       }
-      setLoading(false);
-    },
-    [distrito, registrarBusqueda]
-  );
+      if (!vari) { setVariante(null); setLoading(false); return; }
+      setVariante(vari);
+      const { registros } = await consultarPrecios(vari.grupo, vari.codGrupoFF, vari.concent, ubigeo, dep, prov, 1, 100);
+      setResultados(registros);
+      const precios = registros.map(precioDe).filter((p) => p > 0);
+      registrarBusqueda(vari, precios);
+    } catch (e) {
+      console.error("buscar error:", e);
+    }
+    setLoading(false);
+  }, [query, preVariante, dep, prov, ubigeo, registrarBusqueda]);
 
-  // Buscar al recibir un nuevo término desde el shell
-  useEffect(() => {
-    if (query) buscar(query, distrito);
-  }, [query, distrito, buscar]);
+  useEffect(() => { buscar(); }, [buscar]);
 
   const { lista, minP, maxP, ahorro } = useMemo(() => {
     let arr = [...resultados];
     if (soloAbiertas) {
-      arr = arr.filter((r) => {
-        const { estado } = getEstadoFarmacia(r.nombreComercial, r.setcodigo);
-        return estado === "abierto" || estado === "24h";
-      });
+      arr = arr.filter((r) => { const { estado } = getEstadoFarmacia(r.nombreComercial, r.setcodigo); return estado === "abierto" || estado === "24h"; });
     }
-    arr.sort((a, b) =>
-      sortBy === "precio"
-        ? (precioDe(a) || 1e9) - (precioDe(b) || 1e9)
-        : (a.nombreComercial || "").localeCompare(b.nombreComercial || "")
-    );
+    arr.sort((a, b) => (sortBy === "precio" ? (precioDe(a) || 1e9) - (precioDe(b) || 1e9) : (a.nombreComercial || "").localeCompare(b.nombreComercial || "")));
     const precios = arr.map(precioDe).filter((p) => p > 0);
     const mn = precios.length ? Math.min(...precios) : null;
     const mx = precios.length ? Math.max(...precios) : null;
@@ -122,52 +103,38 @@ export default function Resultados({ query, go, activePersona }) {
     <main className="min-h-screen flex flex-col md:flex-row">
       {/* Sidebar (Ether) */}
       <aside className="md:w-[35%] relative overflow-hidden flex flex-col p-margin-page text-white" style={{ background: "linear-gradient(165deg, #3c51c2 0%, #8135c5 50%, #2c0050 100%)" }}>
-        <div className="relative z-10 space-y-10">
+        <div className="relative z-10 space-y-8">
           <div>
-            <h1 className="font-display-lg text-display-lg mb-4">{variante?.nombreProducto || query || "Buscar"}</h1>
+            <h1 className="font-display-lg text-display-lg mb-3">{variante?.nombreProducto || query || "Buscar"}</h1>
             <p className="text-white/80 font-body-md max-w-md">
-              {loading
-                ? "Consultando precios oficiales DIGEMID…"
-                : buscado && lista.length
-                ? `${lista.length} resultados${minP ? ` · desde ${fmt(minP)} hasta ${fmt(maxP)}` : ""}.`
-                : "Busca un medicamento para comparar precios en tu distrito."}
+              {loading ? "Consultando precios oficiales DIGEMID…" : buscado && lista.length ? `${lista.length} resultados${minP ? ` · desde ${fmt(minP)} hasta ${fmt(maxP)}` : ""}.` : "Busca un medicamento para comparar precios."}
             </p>
           </div>
+
+          {/* Botón nueva búsqueda */}
+          <button onClick={() => go("home")} className="inline-flex items-center gap-2 bg-white text-primary font-bold rounded-full px-6 py-3 hover:shadow-lg transition-all active:scale-95">
+            <span className="material-symbols-outlined text-[20px]">search</span> Nueva búsqueda
+          </button>
 
           {ahorro > 0 && (
             <div className="glass-card rounded-lg p-6 max-w-md">
               <span className="font-label-caps text-label-caps uppercase tracking-widest text-white/60">Tu ahorro en esta búsqueda</span>
               <p className="font-display-lg text-[40px] leading-none mt-2 mb-1">{fmt(ahorro)}</p>
-              <p className="text-body-sm text-white/80">comprando en la más barata ({fmt(minP)}) en vez de la más cara ({fmt(maxP)}) de {distrito}.</p>
+              <p className="text-body-sm text-white/80">comprando en la más barata ({fmt(minP)}) en vez de la más cara ({fmt(maxP)}) en {zonaTxt}.</p>
             </div>
           )}
 
-          <div className="glass-card rounded-lg p-8 space-y-6 max-w-md">
-            <h2 className="font-label-caps text-label-caps uppercase tracking-widest text-white/60">Filtros</h2>
-            <div className="space-y-3">
-              <label className="font-label-caps text-label-caps">Distrito</label>
-              <div className="relative">
-                <select
-                  className="w-full bg-white/10 border border-white/20 rounded-full py-3 px-5 text-body-sm text-white appearance-none cursor-pointer focus:ring-2 focus:ring-white/40"
-                  value={distrito}
-                  onChange={(e) => { setDistrito(e.target.value); if (variante) buscar(variante.nombreProducto, e.target.value); }}
-                >
-                  {Object.keys(DISTRITOS).map((d) => (
-                    <option key={d} value={d} className="text-on-surface">{d}</option>
-                  ))}
-                </select>
-                <span className="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-white/70 text-[20px]">expand_more</span>
+          <div className="glass-card rounded-lg p-6 space-y-4 max-w-md">
+            <div>
+              <span className="font-label-caps text-label-caps uppercase tracking-widest text-white/60">Zona</span>
+              <p className="text-body-md mt-1">{zonaTxt}</p>
+            </div>
+            <label className="flex items-center gap-3 cursor-pointer group" onClick={() => setSoloAbiertas((v) => !v)}>
+              <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${soloAbiertas ? "bg-white border-white" : "border-white/30 group-hover:border-white"}`}>
+                {soloAbiertas && <span className="material-symbols-outlined text-[14px] text-primary">check</span>}
               </div>
-            </div>
-            <div className="space-y-3">
-              <label className="font-label-caps text-label-caps">Disponibilidad</label>
-              <label className="flex items-center gap-3 cursor-pointer group" onClick={() => setSoloAbiertas((v) => !v)}>
-                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-all ${soloAbiertas ? "bg-white border-white" : "border-white/30 group-hover:border-white"}`}>
-                  {soloAbiertas && <span className="material-symbols-outlined text-[14px] text-primary">check</span>}
-                </div>
-                <span className="text-body-sm">Solo abiertas ahora</span>
-              </label>
-            </div>
+              <span className="text-body-sm">Solo abiertas ahora</span>
+            </label>
           </div>
         </div>
 
@@ -206,7 +173,8 @@ export default function Resultados({ query, go, activePersona }) {
           {!loading && buscado && lista.length === 0 && (
             <div className="flex flex-col items-center justify-center py-24 text-on-surface-variant text-center">
               <span className="material-symbols-outlined text-5xl text-outline mb-4">search_off</span>
-              <p className="text-body-md">No encontramos precios para "{query}" en {distrito}.</p>
+              <p className="text-body-md mb-4">No encontramos precios para "{query}" en {zonaTxt}.</p>
+              <button onClick={() => go("home")} className="px-8 py-3 bg-primary text-white font-bold rounded-full">Nueva búsqueda</button>
             </div>
           )}
 
@@ -252,7 +220,7 @@ export default function Resultados({ query, go, activePersona }) {
                         <span className="block text-label-caps text-on-surface-variant mb-1 uppercase">Precio</span>
                         <span className={`text-[40px] font-bold leading-none ${esMejor ? "text-primary" : "text-on-surface"}`}>{precio > 0 ? fmt(precio) : "s/d"}</span>
                       </div>
-                      <button onClick={() => go("detalle", { variante, distrito, registro: r })} className={`px-10 py-4 font-bold rounded-full transition-all active:scale-95 text-body-md w-full sm:w-auto ${esMejor ? "bg-primary text-white hover:bg-primary-container hover:shadow-lg" : "border-2 border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary hover:bg-primary/5"}`}>
+                      <button onClick={() => go("detalle", { variante, loc, registro: r })} className={`px-10 py-4 font-bold rounded-full transition-all active:scale-95 text-body-md w-full sm:w-auto ${esMejor ? "bg-primary text-white hover:bg-primary-container hover:shadow-lg" : "border-2 border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary hover:bg-primary/5"}`}>
                         Ver detalle
                       </button>
                     </div>
