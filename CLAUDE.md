@@ -82,7 +82,14 @@ medisinas/
 │   ├── save-receta.js          # Guarda receta médica
 │   ├── get-recetas.js          # Lista recetas del usuario
 │   ├── horario-farmacia.js     # Horarios vía Facebook Graph API + caché
-│   └── geocode.js              # Geocoding server-side con caché Supabase
+│   ├── geocode.js              # Geocoding server-side con caché Supabase
+│   ├── get-personas.js         # Lista personas a cargo (auto-crea titular)
+│   ├── save-persona.js         # Crea/actualiza persona (perfil familiar)
+│   ├── delete-persona.js       # Soft delete persona (no borra titular)
+│   ├── registrar-busqueda.js   # Registra ahorro + snapshot de precio tras cada búsqueda
+│   ├── get-ahorros.js          # Acumulados de ahorro (real/potencial, por persona)
+│   ├── confirmar-compra.js     # Marca ahorro como real al confirmar compra
+│   └── historial-precios.js    # Evolución de precios de un producto (gráfico)
 └── vercel.json                 # outputDirectory: build, crons config
 ```
 
@@ -96,9 +103,16 @@ medicamentos_usuario — usuario_id, nombre_producto, concent, forma_farmaceutic
                        ultima_compra, activo
 alertas_precio      — usuario_id, nombre_producto, concent, grupo, cod_grupo_ff,
                       precio_objetivo, distrito, activa, ultima_notificacion
-recetas_medicas     — usuario_id, foto_url, foto_path, medicamentos[], doctor_nombre,
-                      especialidad, fecha_emision, fecha_vencimiento, diagnostico,
-                      periodicidad, cantidad_por_periodo, notas, activa
+recetas_medicas     — usuario_id, persona_id, foto_url, foto_path, medicamentos[],
+                      doctor_nombre, especialidad, fecha_emision, fecha_vencimiento,
+                      diagnostico, periodicidad, cantidad_por_periodo, notas, activa
+personas            — usuario_id, nombre, parentesco, genero, anio_nacimiento,
+                      condiciones[], alergias[], color, es_titular, activo (perfiles familiares)
+ahorros             — usuario_id, persona_id, nombre_producto, concent, grupo, cod_grupo_ff,
+                      distrito, precio_min, precio_max, num_farmacias, ahorro_potencial,
+                      ahorro_real, comprado, precio_pagado (ahorro por búsqueda)
+historial_precios   — nombre_producto, concent, grupo, cod_grupo_ff, distrito, fecha,
+                      precio_min, precio_max, precio_promedio, num_farmacias (1/producto/distrito/día)
 pharmacy_hours      — nombre_comercial, distrito, facebook_page_id, hours,
                       is_24h, abierto_ahora, hora_apertura, hora_cierre, last_updated
 geocoding_cache     — direccion, distrito, lat, lon (caché Nominatim → Supabase)
