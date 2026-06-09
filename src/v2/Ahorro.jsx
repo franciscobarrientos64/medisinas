@@ -10,7 +10,7 @@ export default function Ahorro({ go, personas = [] }) {
 
   useEffect(() => {
     if (!user?.id) { setLoading(false); return; }
-    fetch(`/api/get-ahorros?userId=${user.id}`).then((r) => r.json()).then((d) => { setData(d); setLoading(false); }).catch(() => setLoading(false));
+    fetch(`/api/data?action=get-ahorros&userId=${user.id}`).then((r) => r.json()).then((d) => { setData(d); setLoading(false); }).catch(() => setLoading(false));
   }, [user]);
 
   const nombrePersona = (id) => {

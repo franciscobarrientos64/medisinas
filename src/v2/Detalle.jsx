@@ -75,7 +75,7 @@ export default function Detalle({ params = {}, go, activePersona }) {
       ...(distrito !== "Todos Lima" ? { distrito } : {}),
       dias: "90",
     });
-    fetch(`/api/historial-precios?${qs}`).then((r) => r.json()).then((d) => setHistorial(d.historial || [])).catch(() => {});
+    fetch(`/api/data?action=historial-precios&${qs}`).then((r) => r.json()).then((d) => setHistorial(d.historial || [])).catch(() => {});
   }, [variante, distrito]);
 
   const { minP, maxP, ahorro } = useMemo(() => {

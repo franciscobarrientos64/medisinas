@@ -30,7 +30,7 @@ export default function AppV2() {
       setActivePersona(null);
       return;
     }
-    fetch(`/api/get-personas?userId=${user.id}`)
+    fetch(`/api/data?action=get-personas&userId=${user.id}`)
       .then((r) => r.json())
       .then((d) => {
         const ps = d.personas || [];

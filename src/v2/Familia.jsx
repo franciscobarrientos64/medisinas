@@ -45,7 +45,7 @@ export default function Familia({ go, personas = [], onRefresh }) {
       alergias: form.alergias,
       color: form.color,
     };
-    await fetch("/api/save-persona", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    await fetch("/api/data?action=save-persona", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     setSaving(false);
     setEditando(null);
     onRefresh && onRefresh();
@@ -54,7 +54,7 @@ export default function Familia({ go, personas = [], onRefresh }) {
   const eliminar = async (p) => {
     if (p.es_titular) return;
     if (!window.confirm(`¿Eliminar a ${p.nombre}?`)) return;
-    await fetch("/api/delete-persona", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: user.id, personaId: p.id }) });
+    await fetch("/api/data?action=delete-persona", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: user.id, personaId: p.id }) });
     onRefresh && onRefresh();
   };
 

@@ -10,13 +10,13 @@ export default function Alertas({ go }) {
 
   const cargar = useCallback(() => {
     if (!user?.id) { setLoading(false); return; }
-    fetch(`/api/get-alertas?userId=${user.id}`).then((r) => r.json()).then((d) => { setAlertas(d.alertas || []); setLoading(false); }).catch(() => setLoading(false));
+    fetch(`/api/data?action=get-alertas&userId=${user.id}`).then((r) => r.json()).then((d) => { setAlertas(d.alertas || []); setLoading(false); }).catch(() => setLoading(false));
   }, [user]);
 
   useEffect(() => { cargar(); }, [cargar]);
 
   const eliminar = async (a) => {
-    await fetch("/api/delete-alerta", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: user.id, alertaId: a.id }) });
+    await fetch("/api/data?action=delete-alerta", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: user.id, alertaId: a.id }) });
     cargar();
   };
 

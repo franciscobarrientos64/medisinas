@@ -44,7 +44,7 @@ export default function Resultados({ query, go, activePersona }) {
     (vari, dist, precios) => {
       const user = getLocalUser();
       if (!user?.id || precios.length < 2) return;
-      fetch("/api/registrar-busqueda", {
+      fetch("/api/data?action=registrar-busqueda", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
