@@ -22,7 +22,7 @@ export default function Recetas({ go }) {
 
   const cargar = useCallback(() => {
     if (!user?.id) { setLoading(false); return; }
-    fetch(`/api/get-recetas?userId=${user.id}`).then((r) => r.json()).then((d) => { setRecetas(d.recetas || []); setLoading(false); }).catch(() => setLoading(false));
+    fetch(`/api/data?action=get-recetas&userId=${user.id}`).then((r) => r.json()).then((d) => { setRecetas(d.recetas || []); setLoading(false); }).catch(() => setLoading(false));
   }, [user]);
 
   useEffect(() => { cargar(); }, [cargar]);
@@ -31,7 +31,7 @@ export default function Recetas({ go }) {
     const meds = form.medicamentos.split(",").map((s) => s.trim()).filter(Boolean);
     if (!meds.length) return;
     setSaving(true);
-    await fetch("/api/save-receta", {
+    await fetch("/api/data?action=save-receta", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId: user.id, medicamentos: meds, doctor_nombre: form.doctor_nombre, especialidad: form.especialidad, fecha_emision: form.fecha_emision || null, fecha_vencimiento: form.fecha_vencimiento || null, periodicidad: form.periodicidad, diagnostico: form.diagnostico }),
     });

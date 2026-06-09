@@ -169,6 +169,110 @@ module.exports = async function handler(req, res) {
         return res.json({ success: true });
       }
 
+      case "save-alerta": {
+        if (req.method !== "POST") return res.status(405).end();
+        const { userId, nombre_producto, concent, grupo, cod_grupo_ff, precio_objetivo, distrito } = req.body;
+        if (!userId || !nombre_producto || !precio_objetivo) return res.status(400).json({ error: "Faltan datos" });
+        const { data, error } = await supabase.from("alertas_precio").upsert({
+          usuario_id: userId, nombre_producto, concent, grupo, cod_grupo_ff, precio_objetivo,
+          distrito: distrito || null, activa: true, ultima_notificacion: null,
+        }, { onConflict: "usuario_id,grupo,cod_grupo_ff,concent" }).select().single();
+        if (error) {
+          const { data: ins, error: insErr } = await supabase.from("alertas_precio")
+            .insert({ usuario_id: userId, nombre_producto, concent, grupo, cod_grupo_ff, precio_objetivo, distrito: distrito || null, activa: true }).select().single();
+          if (insErr) return res.status(500).json({ error: insErr.message });
+          return res.json({ success: true, alerta: ins });
+        }
+        return res.json({ success: true, alerta: data });
+      }
+
+      // ───────── MEDICAMENTOS ─────────
+      case "save-medicamento": {
+        if (req.method !== "POST") return res.status(405).end();
+        const { userId, persona_id, medicamento } = req.body;
+        if (!userId || !medicamento) return res.status(400).json({ error: "Faltan datos" });
+        const { data: existing } = await supabase.from("medicamentos_usuario").select("id")
+          .eq("usuario_id", userId).eq("grupo", medicamento.grupo).eq("cod_grupo_ff", String(medicamento.codGrupoFF)).eq("concent", medicamento.concent).maybeSingle();
+        if (existing) {
+          await supabase.from("medicamentos_usuario").update({ activo: true, ultima_compra: new Date().toISOString().split("T")[0] }).eq("id", existing.id);
+          return res.json({ success: true, action: "updated", id: existing.id });
+        }
+        const { data, error } = await supabase.from("medicamentos_usuario").insert({
+          usuario_id: userId, nombre_producto: medicamento.nombreProducto, concent: medicamento.concent,
+          forma_farmaceutica: medicamento.nombreFormaFarmaceutica || null, grupo: medicamento.grupo,
+          cod_grupo_ff: String(medicamento.codGrupoFF), persona_id: persona_id || null,
+          ultima_compra: new Date().toISOString().split("T")[0], activo: true,
+        }).select().single();
+        if (error) return res.status(500).json({ error: error.message });
+        return res.json({ success: true, action: "created", id: data.id });
+      }
+
+      case "get-medicamentos": {
+        if (req.method !== "GET") return res.status(405).end();
+        const { userId, personaId } = req.query;
+        if (!userId) return res.status(400).json({ error: "userId requerido" });
+        let q = supabase.from("medicamentos_usuario").select("*").eq("usuario_id", userId).eq("activo", true);
+        if (personaId) q = q.eq("persona_id", personaId);
+        const { data, error } = await q.order("ultima_compra", { ascending: false });
+        if (error) return res.status(500).json({ error: error.message });
+        return res.json({ medicamentos: data || [] });
+      }
+
+      case "delete-medicamento": {
+        if (req.method !== "POST") return res.status(405).end();
+        const { userId, medicamentoId } = req.body;
+        if (!userId || !medicamentoId) return res.status(400).json({ error: "Faltan datos" });
+        const { error } = await supabase.from("medicamentos_usuario").update({ activo: false }).eq("id", medicamentoId).eq("usuario_id", userId);
+        if (error) return res.status(500).json({ error: error.message });
+        return res.json({ success: true });
+      }
+
+      case "compre-hoy": {
+        if (req.method !== "POST") return res.status(405).end();
+        const { userId, medicamentoId } = req.body;
+        if (!userId || !medicamentoId) return res.status(400).json({ error: "Faltan datos" });
+        const hoy = new Date().toISOString().split("T")[0];
+        const { data, error } = await supabase.from("medicamentos_usuario").update({ ultima_compra: hoy }).eq("id", medicamentoId).eq("usuario_id", userId).select().single();
+        if (error) return res.status(500).json({ error: error.message });
+        let proxima = null;
+        if (data.frecuencia_dias) { const d = new Date(hoy); d.setDate(d.getDate() + data.frecuencia_dias); proxima = d.toISOString().split("T")[0]; }
+        return res.json({ success: true, ultima_compra: hoy, proxima_compra: proxima });
+      }
+
+      // ───────── RECETAS ─────────
+      case "save-receta": {
+        if (req.method !== "POST") return res.status(405).end();
+        const { userId, foto_url, foto_path, medicamentos, doctor_nombre, especialidad, fecha_emision, fecha_vencimiento, diagnostico, periodicidad, cantidad_por_periodo, notas } = req.body;
+        if (!userId || !medicamentos?.length) return res.status(400).json({ error: "userId y medicamentos requeridos" });
+        const { data, error } = await supabase.from("recetas_medicas").insert({
+          usuario_id: userId, foto_url: foto_url || null, foto_path: foto_path || null, medicamentos,
+          doctor_nombre: doctor_nombre || null, especialidad: especialidad || null, fecha_emision: fecha_emision || null,
+          fecha_vencimiento: fecha_vencimiento || null, diagnostico: diagnostico || null,
+          periodicidad: periodicidad || "mensual", cantidad_por_periodo: cantidad_por_periodo || null, notas: notas || null, activa: true,
+        }).select().single();
+        if (error) return res.status(500).json({ error: error.message });
+        return res.json({ success: true, receta: data });
+      }
+
+      case "get-recetas": {
+        if (req.method !== "GET") return res.status(405).end();
+        const { userId } = req.query;
+        if (!userId) return res.status(400).json({ error: "userId requerido" });
+        const { data, error } = await supabase.from("recetas_medicas").select("*").eq("usuario_id", userId).eq("activa", true).order("created_at", { ascending: false });
+        if (error) return res.status(500).json({ error: error.message });
+        return res.json({ recetas: data || [] });
+      }
+
+      // ───────── PERFIL ─────────
+      case "update-profile": {
+        if (req.method !== "POST") return res.status(405).end();
+        const { userId, nombre, apellido, anio_nacimiento, genero, email } = req.body;
+        if (!userId) return res.status(400).json({ error: "userId requerido" });
+        const { error } = await supabase.from("usuarios").update({ nombre, apellido, anio_nacimiento, genero, email: email || null }).eq("id", userId);
+        if (error) return res.status(500).json({ error: error.message });
+        return res.json({ success: true });
+      }
+
       default:
         return res.status(400).json({ error: "acción inválida: " + action });
     }

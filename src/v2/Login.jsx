@@ -56,7 +56,7 @@ export default function Login({ go, onAuthed }) {
     if (!perfil.genero) { setError("Selecciona el género."); return; }
     setLoading(true);
     try {
-      await fetch("/api/update-profile", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: userData?.id, nombre: perfil.nombre.trim(), apellido: perfil.apellido.trim() || null, anio_nacimiento: anio, genero: perfil.genero }) });
+      await fetch("/api/data?action=update-profile", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: userData?.id, nombre: perfil.nombre.trim(), apellido: perfil.apellido.trim() || null, anio_nacimiento: anio, genero: perfil.genero }) });
     } catch {}
     setLoading(false);
     onAuthed({ ...userData, ...perfil, anio_nacimiento: anio });

@@ -88,7 +88,7 @@ export default function Detalle({ params = {}, go, activePersona }) {
   const guardarMed = async () => {
     const user = getLocalUser();
     if (!user?.id) { go("login"); return; }
-    const res = await fetch("/api/save-medicamento", {
+    const res = await fetch("/api/data?action=save-medicamento", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId: user.id, persona_id: activePersona?.id || null, medicamento: { nombreProducto: variante.nombreProducto, concent: variante.concent, nombreFormaFarmaceutica: variante.nomGrupoFF, grupo: variante.grupo, codGrupoFF: variante.codGrupoFF } }),
     }).then((r) => r.json());
@@ -100,7 +100,7 @@ export default function Detalle({ params = {}, go, activePersona }) {
     const user = getLocalUser();
     if (!user?.id) { go("login"); return; }
     const objetivo = minP ? Math.round(minP * 0.9 * 100) / 100 : null;
-    const res = await fetch("/api/save-alerta", {
+    const res = await fetch("/api/data?action=save-alerta", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ userId: user.id, nombre_producto: variante.nombreProducto, concent: variante.concent, grupo: variante.grupo, cod_grupo_ff: String(variante.codGrupoFF), precio_objetivo: objetivo, distrito: distrito === "Todos Lima" ? null : distrito }),
     }).then((r) => r.json());

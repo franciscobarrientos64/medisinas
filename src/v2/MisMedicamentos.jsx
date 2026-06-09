@@ -27,18 +27,18 @@ export default function MisMedicamentos({ go, activePersona }) {
   const cargar = useCallback(() => {
     if (!user?.id) { setLoading(false); return; }
     const qs = new URLSearchParams({ userId: user.id, ...(activePersona?.id ? { personaId: activePersona.id } : {}) });
-    fetch(`/api/get-medicamentos?${qs}`).then((r) => r.json()).then((d) => { setMeds(d.medicamentos || []); setLoading(false); }).catch(() => setLoading(false));
+    fetch(`/api/data?action=get-medicamentos&${qs}`).then((r) => r.json()).then((d) => { setMeds(d.medicamentos || []); setLoading(false); }).catch(() => setLoading(false));
   }, [user, activePersona]);
 
   useEffect(() => { cargar(); }, [cargar]);
 
   const compreHoy = async (m) => {
-    await fetch("/api/compre-hoy", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: user.id, medicamentoId: m.id }) });
+    await fetch("/api/data?action=compre-hoy", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: user.id, medicamentoId: m.id }) });
     cargar();
   };
   const eliminar = async (m) => {
     if (!window.confirm(`¿Quitar ${m.nombre_producto}?`)) return;
-    await fetch("/api/delete-medicamento", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: user.id, medicamentoId: m.id }) });
+    await fetch("/api/data?action=delete-medicamento", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: user.id, medicamentoId: m.id }) });
     cargar();
   };
 
