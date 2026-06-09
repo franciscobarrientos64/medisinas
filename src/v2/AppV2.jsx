@@ -4,8 +4,10 @@ import { useAuth } from "../UserAuth";
 import TopNav from "./TopNav";
 import Home from "./Home";
 import Resultados from "./Resultados";
+import Detalle from "./Detalle";
+import Ahorro from "./Ahorro";
+import Familia from "./Familia";
 
-// Pantallas aún por portar (se irán reemplazando por las definitivas).
 function Placeholder({ title, go }) {
   return (
     <div className="flex flex-col items-center justify-center py-32 px-margin-page text-center">
@@ -28,7 +30,7 @@ export default function AppV2() {
     window.scrollTo(0, 0);
   }, []);
 
-  useEffect(() => {
+  const refreshPersonas = useCallback(() => {
     if (!user?.id) {
       setPersonas([]);
       setActivePersona(null);
@@ -39,10 +41,12 @@ export default function AppV2() {
       .then((d) => {
         const ps = d.personas || [];
         setPersonas(ps);
-        setActivePersona((prev) => prev || ps.find((p) => p.es_titular) || ps[0] || null);
+        setActivePersona((prev) => (prev && ps.find((p) => p.id === prev.id)) || ps.find((p) => p.es_titular) || ps[0] || null);
       })
       .catch(() => {});
   }, [user]);
+
+  useEffect(() => { refreshPersonas(); }, [refreshPersonas]);
 
   let screen;
   switch (route.name) {
@@ -51,6 +55,15 @@ export default function AppV2() {
       break;
     case "resultados":
       screen = <Resultados query={route.params.query} go={go} activePersona={activePersona} />;
+      break;
+    case "detalle":
+      screen = <Detalle params={route.params} go={go} activePersona={activePersona} />;
+      break;
+    case "ahorro":
+      screen = <Ahorro go={go} personas={personas} />;
+      break;
+    case "familia":
+      screen = <Familia go={go} personas={personas} onRefresh={refreshPersonas} />;
       break;
     default:
       screen = <Placeholder title={route.name} go={go} />;
