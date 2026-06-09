@@ -3,7 +3,7 @@ const { createClient } = require("@supabase/supabase-js");
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
 
-  const { userId, medicamento, frecuencia_dias, cantidad_unidades, compraste_hoy, ultima_compra } = req.body;
+  const { userId, persona_id, medicamento, frecuencia_dias, cantidad_unidades, compraste_hoy, ultima_compra } = req.body;
   if (!userId || !medicamento) return res.status(400).json({ error: "Faltan datos" });
 
   const supabase = createClient(
@@ -40,6 +40,7 @@ module.exports = async function handler(req, res) {
       forma_farmaceutica: medicamento.nombreFormaFarmaceutica || null,
       grupo: medicamento.grupo,
       cod_grupo_ff: String(medicamento.codGrupoFF),
+      persona_id: persona_id || null,
       ultima_compra: new Date().toISOString().split("T")[0],
       activo: true,
     })

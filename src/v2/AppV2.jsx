@@ -7,20 +7,14 @@ import Resultados from "./Resultados";
 import Detalle from "./Detalle";
 import Ahorro from "./Ahorro";
 import Familia from "./Familia";
-
-function Placeholder({ title, go }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-32 px-margin-page text-center">
-      <span className="material-symbols-outlined text-5xl text-outline mb-4">construction</span>
-      <h2 className="font-headline-lg text-headline-lg text-on-surface mb-2 capitalize">{title}</h2>
-      <p className="text-on-surface-variant text-body-md mb-6">Esta pantalla está en construcción en el rediseño.</p>
-      <button onClick={() => go("home")} className="px-8 py-3 bg-primary text-white font-bold rounded-full">Volver al inicio</button>
-    </div>
-  );
-}
+import MisMedicamentos from "./MisMedicamentos";
+import Recetas from "./Recetas";
+import Alertas from "./Alertas";
+import Login from "./Login";
+import Perfil from "./Perfil";
 
 export default function AppV2() {
-  const { user } = useAuth();
+  const { user, signOut, signIn } = useAuth();
   const [route, setRoute] = useState({ name: "home", params: {} });
   const [personas, setPersonas] = useState([]);
   const [activePersona, setActivePersona] = useState(null);
@@ -48,25 +42,21 @@ export default function AppV2() {
 
   useEffect(() => { refreshPersonas(); }, [refreshPersonas]);
 
+  const onAuthed = (u) => { signIn(u); go("home"); };
+
   let screen;
   switch (route.name) {
-    case "home":
-      screen = <Home go={go} activePersona={activePersona} />;
-      break;
-    case "resultados":
-      screen = <Resultados query={route.params.query} go={go} activePersona={activePersona} />;
-      break;
-    case "detalle":
-      screen = <Detalle params={route.params} go={go} activePersona={activePersona} />;
-      break;
-    case "ahorro":
-      screen = <Ahorro go={go} personas={personas} />;
-      break;
-    case "familia":
-      screen = <Familia go={go} personas={personas} onRefresh={refreshPersonas} />;
-      break;
-    default:
-      screen = <Placeholder title={route.name} go={go} />;
+    case "home": screen = <Home go={go} activePersona={activePersona} />; break;
+    case "resultados": screen = <Resultados query={route.params.query} go={go} activePersona={activePersona} />; break;
+    case "detalle": screen = <Detalle params={route.params} go={go} activePersona={activePersona} />; break;
+    case "ahorro": screen = <Ahorro go={go} personas={personas} />; break;
+    case "familia": screen = <Familia go={go} personas={personas} onRefresh={refreshPersonas} />; break;
+    case "medicamentos": screen = <MisMedicamentos go={go} activePersona={activePersona} />; break;
+    case "recetas": screen = <Recetas go={go} />; break;
+    case "alertas": screen = <Alertas go={go} />; break;
+    case "login": screen = <Login go={go} onAuthed={onAuthed} />; break;
+    case "perfil": screen = <Perfil go={go} user={user} onSignOut={signOut} />; break;
+    default: screen = <Home go={go} activePersona={activePersona} />;
   }
 
   return (
