@@ -107,14 +107,6 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
     );
   };
 
-  const tipoMedicamento = useMemo(() => {
-    const sus = (resultados[0]?.nombreSustancia || "").toUpperCase();
-    const prod = (variante?.nombreProducto || "").toUpperCase();
-    if (!sus || !prod) return null;
-    const base = sus.split(" ")[0];
-    return prod === sus || (base && prod.startsWith(base)) ? "Genérico" : "De marca";
-  }, [resultados, variante]);
-
   // Rango de precios crudo (para el slider)
   const rango = useMemo(() => {
     const ps = resultados.map(precioDe).filter((p) => p > 0);
@@ -163,17 +155,13 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
         <div className="relative z-10 space-y-6">
           <div>
             <h1 className="font-display-lg text-display-lg mb-2">{variante ? `${variante.nombreProducto}${variante.concent ? " " + variante.concent : ""}` : (query || "Buscar")}</h1>
-            <p className="text-white/80 font-body-md mb-3">
-              {loading ? "Consultando precios DIGEMID…" : buscado && lista.length ? `${lista.length} farmacias` : "Sin resultados"}
+            <p className="text-white/80 font-body-md max-w-md">
+              {loading
+                ? "Consultando precios oficiales DIGEMID…"
+                : lista.length
+                ? `Encontramos ${lista.length} resultados en farmacias verificadas en tu zona.${minP ? ` Los precios van de ${fmt(minP)} a ${fmt(maxP)}.` : ""}`
+                : "No encontramos resultados."}
             </p>
-            <div className="text-body-sm space-y-1">
-              <p className="text-white/50">Rango de precio</p>
-              <p className="font-semibold">{rango ? `${fmt(rango.min)} – ${fmt(rango.max)}` : "—"}</p>
-              <p className="text-white/50 pt-1">Zona</p>
-              <p className="font-semibold">{zonaTxt}</p>
-              <p className="text-white/50 pt-1">Tipo</p>
-              <p className="font-semibold">{tipoMedicamento || "—"}</p>
-            </div>
           </div>
 
           <button onClick={() => go("home")} className="inline-flex items-center gap-2 bg-white text-primary font-bold rounded-full px-6 py-3 hover:shadow-lg transition-all active:scale-95">
