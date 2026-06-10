@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import Buscador from "./Buscador";
+import { VERSION } from "../version";
 
 // Barra superior compartida. Logo (Talina), navegación, buscador con autocompletado y persona activa.
 export default function TopNav({ go, active, personas = [], activePersona, onChangePersona, user, onProfile }) {
@@ -17,7 +18,7 @@ export default function TopNav({ go, active, personas = [], activePersona, onCha
       <div className="flex justify-between items-center w-full px-margin-page py-4 gap-4">
         <div className="flex items-center gap-10 shrink-0">
           <button onClick={() => go("home")} className="font-logo text-[26px] font-bold text-primary">Medisinas</button>
-          <span className="text-[10px] text-on-surface-variant/50">V.19</span>
+          <span className="text-[10px] text-on-surface-variant/50">V.{VERSION}</span>
           <div className="hidden lg:flex items-center gap-8 font-body-md text-body-md">
             {links.map((l) => (
               <button key={l.id} onClick={() => go(l.id)} className={active === l.id ? "text-primary border-b-2 border-primary pb-1" : "text-on-surface-variant hover:text-primary transition-colors"}>
