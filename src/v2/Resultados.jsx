@@ -67,17 +67,24 @@ export function BadgeHorario({ nombre, setcodigo, estado: estadoProp }) {
 const btnCls = "flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-low border border-outline-variant/50 rounded-full text-[12px] font-medium hover:bg-surface-container-high transition-colors";
 const ICON = { maps: "https://cdn.simpleicons.org/googlemaps", waze: "https://cdn.simpleicons.org/waze/05C8F7", wa: "https://cdn.simpleicons.org/whatsapp/25D366" };
 
-// Cadenas conocidas → color de marca. Si no coincide, no se muestra nada.
+// Token publicable de logo.dev (pk_...). Va en la URL de la imagen — es público por diseño.
+const LOGODEV_TOKEN = "pk_IL3U4aTkRXWb9LLvLb0dOg";
+
+// Cadenas conocidas → color de marca. Fuente del logo, en orden de preferencia:
+//   1) file: archivo oficial en public/logos/ (mejor calidad, lo subes tú)
+//   2) ld + dom: logo.dev (solo cadenas verificadas; muchas peruanas no las tiene bien)
+//   3) monograma en el color de la cadena (siempre disponible)
+// Sin coincidencia de cadena: no se muestra nada.
 const CADENAS = [
-  { m: ["INKAFARMA", "INKA FARMA"], n: "InkaFarma", c: "#F5C800", t: "#1A1A1A" },
-  { m: ["MIFARMA", "MI FARMA"], n: "MiFarma", c: "#E2001A", t: "#FFFFFF" },
-  { m: ["ARCANGEL", "ARCÁNGEL"], n: "Arcángel", c: "#6A1B9A", t: "#FFFFFF" },
-  { m: ["BOTICAS Y SALUD", "BOTICA Y SALUD", "BTL"], n: "Boticas y Salud", c: "#0067B1", t: "#FFFFFF" },
-  { m: ["UNIVERSAL"], n: "Universal", c: "#005BAC", t: "#FFFFFF" },
-  { m: ["SUPERFARMA", "SUPER FARMA"], n: "Superfarma", c: "#E8521A", t: "#FFFFFF" },
-  { m: ["FASA"], n: "Fasa", c: "#E30613", t: "#FFFFFF" },
+  { m: ["INKAFARMA", "INKA FARMA"], n: "InkaFarma", c: "#F5C800", t: "#1A1A1A", dom: "inkafarma.pe" },
+  { m: ["MIFARMA", "MI FARMA"], n: "MiFarma", c: "#E2001A", t: "#FFFFFF", dom: "mifarma.com.pe", ld: true },
+  { m: ["ARCANGEL", "ARCÁNGEL"], n: "Arcángel", c: "#6A1B9A", t: "#FFFFFF", dom: "boticasarcangel.com" },
+  { m: ["BOTICAS Y SALUD", "BOTICA Y SALUD", "BTL"], n: "Boticas y Salud", c: "#0067B1", t: "#FFFFFF", dom: "boticasysalud.com.pe" },
+  { m: ["UNIVERSAL"], n: "Universal", c: "#005BAC", t: "#FFFFFF", dom: "farmaciauniversal.com.pe" },
+  { m: ["SUPERFARMA", "SUPER FARMA"], n: "Superfarma", c: "#E8521A", t: "#FFFFFF", dom: "superfarma.pe" },
+  { m: ["FASA"], n: "Fasa", c: "#E30613", t: "#FFFFFF", dom: "fasa.com.pe" },
   { m: ["MAS FARMA", "MÁSFARMA", "MASFARMA"], n: "MásFarma", c: "#00A19A", t: "#FFFFFF" },
-  { m: ["FARMACITY"], n: "Farmacity", c: "#E2001A", t: "#FFFFFF" },
+  { m: ["FARMACITY"], n: "Farmacity", c: "#E2001A", t: "#FFFFFF", dom: "farmacity.com" },
   { m: ["FARMAMINSA", "FARMA MINSA"], n: "FarmaMinsa", c: "#1565C0", t: "#FFFFFF" },
 ];
 function getCadena(nombre) {
@@ -85,11 +92,29 @@ function getCadena(nombre) {
   return CADENAS.find((c) => c.m.some((p) => u.includes(p))) || null;
 }
 
-// Marca pequeña a la derecha: monograma en el color de la cadena.
-// Para farmacias sin cadena conocida no se muestra nada.
+function logoSrc(cad) {
+  if (cad.file) return `${process.env.PUBLIC_URL}/logos/${cad.file}`;
+  if (LOGODEV_TOKEN && cad.ld && cad.dom) return `https://img.logo.dev/${cad.dom}?token=${LOGODEV_TOKEN}&size=56&format=png&retina=true`;
+  return null;
+}
+
+// Marca pequeña a la derecha: logo oficial si está disponible, si no monograma de color.
 function LogoFarmacia({ nombre }) {
   const cad = getCadena(nombre);
+  const [err, setErr] = useState(false);
   if (!cad) return null;
+  const src = err ? null : logoSrc(cad);
+  if (src) {
+    return (
+      <img
+        src={src}
+        alt={cad.n}
+        title={cad.n}
+        onError={() => setErr(true)}
+        className="w-7 h-7 rounded-md object-contain bg-white border border-outline-variant/30 shrink-0"
+      />
+    );
+  }
   const ini = cad.n.split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
   return (
     <span className="w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-extrabold shrink-0" style={{ background: cad.c, color: cad.t }} title={cad.n}>
