@@ -105,7 +105,7 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
       <aside className="md:w-[35%] relative overflow-hidden flex flex-col p-margin-page text-white" style={{ background: "linear-gradient(165deg, #3c51c2 0%, #8135c5 50%, #2c0050 100%)" }}>
         <div className="relative z-10 space-y-8">
           <div>
-            <h1 className="font-display-lg text-display-lg mb-3">{variante?.nombreProducto || query || "Buscar"}</h1>
+            <h1 className="font-display-lg text-display-lg mb-3">{variante ? `${variante.nombreProducto}${variante.concent ? " " + variante.concent : ""}` : (query || "Buscar")}</h1>
             <p className="text-white/80 font-body-md max-w-md">
               {loading ? "Consultando precios oficiales DIGEMID…" : buscado && lista.length ? `${lista.length} resultados${minP ? ` · desde ${fmt(minP)} hasta ${fmt(maxP)}` : ""}.` : "Busca un medicamento para comparar precios."}
             </p>

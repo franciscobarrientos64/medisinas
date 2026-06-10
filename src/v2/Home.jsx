@@ -91,6 +91,12 @@ export default function Home({ go, activePersona }) {
     fetchVariants(m);
   };
 
+  // Click en una variante/presentación específica → ir directo a su detalle
+  const irADetalle = (v) => {
+    setShowSug(false);
+    go("detalle", { variante: v, loc: getLoc() });
+  };
+
   const hayDropdown = showSug && (cargandoSug || sugerencias.length > 0 || sintoma);
 
   return (
@@ -157,7 +163,7 @@ export default function Home({ go, activePersona }) {
                 )}
                 {cargandoSug && <div className="p-4 text-body-sm text-on-surface-variant flex items-center gap-2"><span className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span> Buscando variantes…</div>}
                 {!cargandoSug && sugerencias.map((v, i) => (
-                  <button key={i} onMouseDown={(e) => { e.preventDefault(); buscar(v.nombreProducto, v); }} className="w-full flex items-center gap-3 p-3 hover:bg-surface-container text-left border-b border-outline-variant/10 last:border-0">
+                  <button key={i} onMouseDown={(e) => { e.preventDefault(); irADetalle(v); }} className="w-full flex items-center gap-3 p-3 hover:bg-surface-container text-left border-b border-outline-variant/10 last:border-0">
                     <span className="material-symbols-outlined text-on-surface-variant text-[20px]">medication</span>
                     <span className="min-w-0">
                       <span className="block text-body-md text-on-surface truncate">{v.nombreProducto} <strong>{v.concent}</strong></span>
