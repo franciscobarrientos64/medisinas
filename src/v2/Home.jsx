@@ -149,7 +149,7 @@ export default function Home({ go, activePersona }) {
                     <p className="text-label-caps text-on-surface-variant uppercase mb-2">Para "{sintoma.sintoma}" suele usarse — elige uno:</p>
                     <div className="flex flex-wrap gap-2">
                       {sintoma.medicamentos.map((m) => (
-                        <button key={m} onMouseDown={() => pickMedicina(m)} className="px-3 py-1.5 rounded-full bg-primary/10 text-primary text-[13px] font-semibold hover:bg-primary/20">{m}</button>
+                        <button key={m} onMouseDown={(e) => { e.preventDefault(); pickMedicina(m); }} className="px-3 py-1.5 rounded-full bg-primary/10 text-primary text-[13px] font-semibold hover:bg-primary/20">{m}</button>
                       ))}
                     </div>
                     <p className="text-[11px] text-on-surface-variant mt-2">Orientativo. No reemplaza la consulta médica.</p>
@@ -157,7 +157,7 @@ export default function Home({ go, activePersona }) {
                 )}
                 {cargandoSug && <div className="p-4 text-body-sm text-on-surface-variant flex items-center gap-2"><span className="material-symbols-outlined animate-spin text-[18px]">progress_activity</span> Buscando variantes…</div>}
                 {!cargandoSug && sugerencias.map((v, i) => (
-                  <button key={i} onMouseDown={() => buscar(v.nombreProducto, v)} className="w-full flex items-center gap-3 p-3 hover:bg-surface-container text-left border-b border-outline-variant/10 last:border-0">
+                  <button key={i} onMouseDown={(e) => { e.preventDefault(); buscar(v.nombreProducto, v); }} className="w-full flex items-center gap-3 p-3 hover:bg-surface-container text-left border-b border-outline-variant/10 last:border-0">
                     <span className="material-symbols-outlined text-on-surface-variant text-[20px]">medication</span>
                     <span className="min-w-0">
                       <span className="block text-body-md text-on-surface truncate">{v.nombreProducto} <strong>{v.concent}</strong></span>
