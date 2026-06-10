@@ -11,8 +11,8 @@ export default async function handler(req, res) {
 
   let detalle = 'sin intentos';
 
-  // Reintenta hasta 3 veces con backoff corto. DIGEMID a veces responde HTML/errores transitorios.
-  for (let intento = 0; intento < 3; intento++) {
+  // Reintenta hasta 2 veces con backoff corto. DIGEMID a veces responde HTML/errores transitorios.
+  for (let intento = 0; intento < 2; intento++) {
     try {
       if (intento > 0) await new Promise(r => setTimeout(r, 400 * intento));
 

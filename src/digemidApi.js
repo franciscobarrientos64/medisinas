@@ -24,7 +24,11 @@ export async function buscarVariantes(nombre) {
   if (data?.codigo === '00') return data.data || [];
   return [];
 }
+const _precioCache = {};
 export async function consultarPrecios(grupo, codGrupoFF, concent, ubigeo, depCod, provCod, pagina = 1, tamanio = 50) {
+  const cacheKey = `${grupo}|${codGrupoFF}|${concent}|${ubigeo}|${depCod}|${provCod}|${pagina}`;
+  const cached = _precioCache[cacheKey];
+  if (cached && Date.now() - cached.ts < 300000) return cached.data; // 5 min
   const filtro = {
     codigoProducto: grupo,
     codigoDepartamento: depCod || null,
@@ -41,6 +45,10 @@ export async function consultarPrecios(grupo, codGrupoFF, concent, ubigeo, depCo
   };
   // El proxy ya reintenta internamente; aquí una sola llamada para no multiplicar la espera.
   const data = await callProxy('preciovista/ciudadano', { filtro });
-  if (data?.codigo === '00') return { registros: data.data || [], cantidad: data.cantidad || 0 };
+  if (data?.codigo === '00') {
+    const result = { registros: data.data || [], cantidad: data.cantidad || 0 };
+    if (result.registros.length) _precioCache[cacheKey] = { data: result, ts: Date.now() };
+    return result;
+  }
   return { registros: [], cantidad: 0 };
 }
