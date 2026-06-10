@@ -76,11 +76,11 @@ const LOGODEV_TOKEN = "pk_IL3U4aTkRXWb9LLvLb0dOg";
 //   3) monograma en el color de la cadena (siempre disponible)
 // Sin coincidencia de cadena: no se muestra nada.
 const CADENAS = [
-  { m: ["INKAFARMA", "INKA FARMA"], n: "InkaFarma", c: "#F5C800", t: "#1A1A1A", dom: "inkafarma.pe" },
+  { m: ["INKAFARMA", "INKA FARMA"], n: "InkaFarma", c: "#F5C800", t: "#1A1A1A", dom: "inkafarma.com.pe", ld: true },
   { m: ["MIFARMA", "MI FARMA"], n: "MiFarma", c: "#E2001A", t: "#FFFFFF", dom: "mifarma.com.pe", ld: true },
-  { m: ["ARCANGEL", "ARCÁNGEL"], n: "Arcángel", c: "#6A1B9A", t: "#FFFFFF", dom: "boticasarcangel.com" },
-  { m: ["BOTICAS Y SALUD", "BOTICA Y SALUD", "BTL"], n: "Boticas y Salud", c: "#0067B1", t: "#FFFFFF", dom: "boticasysalud.com.pe" },
-  { m: ["UNIVERSAL"], n: "Universal", c: "#005BAC", t: "#FFFFFF", dom: "farmaciauniversal.com.pe" },
+  { m: ["ARCANGEL", "ARCÁNGEL"], n: "Arcángel", c: "#6A1B9A", t: "#FFFFFF", dom: "arcangel.com.pe", ld: true },
+  { m: ["BOTICAS Y SALUD", "BOTICA Y SALUD", "BTL"], n: "Boticas y Salud", c: "#0067B1", t: "#FFFFFF", dom: "boticasysalud.com", ld: true },
+  { m: ["UNIVERSAL"], n: "Universal", c: "#005BAC", t: "#FFFFFF", dom: "farmaciauniversal.com", ld: true },
   { m: ["SUPERFARMA", "SUPER FARMA"], n: "Superfarma", c: "#E8521A", t: "#FFFFFF", dom: "superfarma.pe" },
   { m: ["FASA"], n: "Fasa", c: "#E30613", t: "#FFFFFF", dom: "fasa.com.pe" },
   { m: ["MAS FARMA", "MÁSFARMA", "MASFARMA"], n: "MásFarma", c: "#00A19A", t: "#FFFFFF" },
@@ -409,7 +409,7 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
             const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${dest}`;
             const wazeUrl = `https://waze.com/ul?q=${dest}&navigate=yes`;
             return (
-              <div key={`${r.codEstab}-${i}`} className={`clinical-card rounded-lg p-4 md:p-5 relative overflow-hidden clinical-shadow ${esMejor ? "ring-1 ring-secondary/40" : ""}`}>
+              <div key={`${r.codEstab}-${i}`} className={`clinical-card rounded-lg p-4 md:p-5 relative clinical-shadow ${esMejor ? "ring-1 ring-secondary/40" : ""}`}>
                 <div className="flex gap-4">
                   {/* Info */}
                   <div className="flex-grow min-w-0">
