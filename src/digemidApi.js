@@ -39,11 +39,8 @@ export async function consultarPrecios(grupo, codGrupoFF, concent, ubigeo, depCo
     tokenGoogle: 'token',
     nombreProducto: null,
   };
-  // Reintenta: DIGEMID es inestable y a veces devuelve error transitorio.
-  for (let i = 0; i < 3; i++) {
-    const data = await callProxy('preciovista/ciudadano', { filtro });
-    if (data?.codigo === '00') return { registros: data.data || [], cantidad: data.cantidad || 0 };
-    if (i < 2) await new Promise(r => setTimeout(r, 700 * (i + 1)));
-  }
+  // El proxy ya reintenta internamente; aquí una sola llamada para no multiplicar la espera.
+  const data = await callProxy('preciovista/ciudadano', { filtro });
+  if (data?.codigo === '00') return { registros: data.data || [], cantidad: data.cantidad || 0 };
   return { registros: [], cantidad: 0 };
 }

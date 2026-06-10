@@ -11,10 +11,10 @@ export default async function handler(req, res) {
 
   let detalle = 'sin intentos';
 
-  // Reintenta hasta 4 veces con backoff. DIGEMID a veces responde HTML/errores transitorios.
-  for (let intento = 0; intento < 4; intento++) {
+  // Reintenta hasta 3 veces con backoff corto. DIGEMID a veces responde HTML/errores transitorios.
+  for (let intento = 0; intento < 3; intento++) {
     try {
-      if (intento > 0) await new Promise(r => setTimeout(r, 600 * intento));
+      if (intento > 0) await new Promise(r => setTimeout(r, 400 * intento));
 
       const response = await fetch(url, {
         method: 'POST',
@@ -26,7 +26,7 @@ export default async function handler(req, res) {
           'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
         },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(15000),
+        signal: AbortSignal.timeout(8000),
       });
 
       const text = await response.text();
