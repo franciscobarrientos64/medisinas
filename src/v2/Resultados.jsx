@@ -164,10 +164,6 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
             </p>
           </div>
 
-          <button onClick={() => go("home")} className="inline-flex items-center gap-2 bg-white text-primary font-bold rounded-full px-6 py-3 hover:shadow-lg transition-all active:scale-95">
-            <span className="material-symbols-outlined text-[20px]">search</span> Nueva búsqueda
-          </button>
-
           {/* Filtros */}
           <div className="glass-card rounded-lg p-5 space-y-5">
             <h2 className="font-label-caps text-label-caps uppercase tracking-widest text-white/60">Filtros</h2>
@@ -208,6 +204,10 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
               </label>
             </div>
           </div>
+
+          <button onClick={() => go("home")} className="inline-flex items-center justify-center gap-2 bg-white text-primary font-bold rounded-full px-6 py-3 hover:shadow-lg transition-all active:scale-95 w-full">
+            <span className="material-symbols-outlined text-[20px]">search</span> Nueva búsqueda
+          </button>
 
           {ahorro > 0 && (
             <div className="glass-card rounded-lg p-5">
