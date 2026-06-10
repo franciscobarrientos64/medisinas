@@ -163,29 +163,19 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
         <div className="relative z-10 space-y-6">
           <div>
             <h1 className="font-display-lg text-display-lg mb-2">{variante ? `${variante.nombreProducto}${variante.concent ? " " + variante.concent : ""}` : (query || "Buscar")}</h1>
-            <p className="text-white/80 font-body-md">
+            <p className="text-white/80 font-body-md mb-3">
               {loading ? "Consultando precios DIGEMID…" : buscado && lista.length ? `${lista.length} farmacias` : "Sin resultados"}
             </p>
+            <div className="text-body-sm text-white/85 space-y-0.5">
+              <p><span className="text-white/50">Rango de precio:</span> <strong>{rango ? `${fmt(rango.min)} – ${fmt(rango.max)}` : "—"}</strong></p>
+              <p><span className="text-white/50">Zona:</span> <strong>{zonaTxt}</strong></p>
+              <p><span className="text-white/50">Tipo:</span> <strong>{tipoMedicamento || "—"}</strong></p>
+            </div>
           </div>
 
           <button onClick={() => go("home")} className="inline-flex items-center gap-2 bg-white text-primary font-bold rounded-full px-6 py-3 hover:shadow-lg transition-all active:scale-95">
             <span className="material-symbols-outlined text-[20px]">search</span> Nueva búsqueda
           </button>
-
-          {/* Info */}
-          <div className="glass-card rounded-lg p-5 space-y-3">
-            <div className="flex justify-between items-center gap-3"><span className="text-white/60 text-body-sm">Rango de precio</span><span className="font-semibold text-right">{rango ? `${fmt(rango.min)} – ${fmt(rango.max)}` : "—"}</span></div>
-            <div className="flex justify-between items-center gap-3 border-t border-white/15 pt-3"><span className="text-white/60 text-body-sm">Zona</span><span className="font-semibold text-right">{zonaTxt}</span></div>
-            <div className="flex justify-between items-center gap-3 border-t border-white/15 pt-3"><span className="text-white/60 text-body-sm">Tipo</span><span className="font-semibold text-right">{tipoMedicamento || "—"}</span></div>
-          </div>
-
-          {ahorro > 0 && (
-            <div className="glass-card rounded-lg p-5">
-              <span className="font-label-caps text-label-caps uppercase tracking-widest text-white/60">Tu ahorro</span>
-              <p className="font-display-lg text-[36px] leading-none mt-1 mb-1">{fmt(ahorro)}</p>
-              <p className="text-body-sm text-white/80">la más barata vs la más cara.</p>
-            </div>
-          )}
 
           {/* Filtros */}
           <div className="glass-card rounded-lg p-5 space-y-5">
@@ -227,6 +217,14 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
               </label>
             </div>
           </div>
+
+          {ahorro > 0 && (
+            <div className="glass-card rounded-lg p-5">
+              <span className="font-label-caps text-label-caps uppercase tracking-widest text-white/60">Tu ahorro</span>
+              <p className="font-display-lg text-[36px] leading-none mt-1 mb-1">{fmt(ahorro)}</p>
+              <p className="text-body-sm text-white/80">la más barata vs la más cara.</p>
+            </div>
+          )}
 
           <div className="flex items-center gap-3 text-white/50 pt-2 pb-4">
             <span className="material-symbols-outlined">verified_user</span>
