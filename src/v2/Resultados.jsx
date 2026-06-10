@@ -77,8 +77,14 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
       if (!vari) { setVariante(null); setLoading(false); return; }
       setVariante(vari);
       const { registros } = await consultarPrecios(vari.grupo, vari.codGrupoFF, vari.concent, ubigeo, dep, prov, 1, 100);
-      setResultados(registros);
-      const precios = registros.map(precioDe).filter((p) => p > 0);
+      // Garantía: quedarnos solo con la concentración exacta elegida (si existe).
+      let regs = registros;
+      if (vari.concent) {
+        const exact = regs.filter((r) => (r.concent || "") === vari.concent);
+        if (exact.length) regs = exact;
+      }
+      setResultados(regs);
+      const precios = regs.map(precioDe).filter((p) => p > 0);
       registrarBusqueda(vari, precios);
     } catch (e) {
       console.error("buscar error:", e);
