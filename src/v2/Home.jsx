@@ -15,7 +15,7 @@ const ACCESOS = [
 function MiniSelect({ value, onChange, children }) {
   return (
     <div className="relative">
-      <select value={value} onChange={onChange} className="w-full h-11 pl-4 pr-9 rounded-full bg-surface-container-low text-on-surface border-none text-body-sm appearance-none cursor-pointer focus:ring-2 focus:ring-primary/30">
+      <select value={value} onChange={onChange} className="w-full h-11 pl-4 pr-9 rounded-full bg-surface-container-low bg-none text-on-surface border-none text-body-sm appearance-none cursor-pointer focus:ring-2 focus:ring-primary/30">
         {children}
       </select>
       <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant text-[20px]">expand_more</span>
