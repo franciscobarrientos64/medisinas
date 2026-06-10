@@ -166,10 +166,13 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
             <p className="text-white/80 font-body-md mb-3">
               {loading ? "Consultando precios DIGEMID…" : buscado && lista.length ? `${lista.length} farmacias` : "Sin resultados"}
             </p>
-            <div className="text-body-sm text-white/85 space-y-0.5">
-              <p><span className="text-white/50">Rango de precio:</span> <strong>{rango ? `${fmt(rango.min)} – ${fmt(rango.max)}` : "—"}</strong></p>
-              <p><span className="text-white/50">Zona:</span> <strong>{zonaTxt}</strong></p>
-              <p><span className="text-white/50">Tipo:</span> <strong>{tipoMedicamento || "—"}</strong></p>
+            <div className="text-body-sm space-y-1">
+              <p className="text-white/50">Rango de precio</p>
+              <p className="font-semibold">{rango ? `${fmt(rango.min)} – ${fmt(rango.max)}` : "—"}</p>
+              <p className="text-white/50 pt-1">Zona</p>
+              <p className="font-semibold">{zonaTxt}</p>
+              <p className="text-white/50 pt-1">Tipo</p>
+              <p className="font-semibold">{tipoMedicamento || "—"}</p>
             </div>
           </div>
 
