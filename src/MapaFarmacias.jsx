@@ -85,10 +85,12 @@ function getPrecioColor(precio, minPrecio, maxPrecio) {
   return '#DC2626';                   // rojo — más caro
 }
 
-export function MapaFarmacias({ resultados, geoPos }) {
+// puntos: [{ r, coords:{lat,lon}, precio }] — coords ya geocodificadas por Resultados.
+export function MapaFarmacias({ puntos = [], geoPos, maxDist }) {
   const mapRef     = useRef(null);
   const leafletMap = useRef(null);
   const markersRef = useRef([]);
+  const userLayerRef = useRef(null);
   const [listo, setListo] = useState(false);
 
   // Inicializar mapa
@@ -103,112 +105,99 @@ export function MapaFarmacias({ resultados, geoPos }) {
         zoomControl: true, attributionControl: false,
       });
 
-      // Tiles Carto Light — limpio y moderno
       L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         maxZoom: 19, subdomains: 'abcd',
       }).addTo(leafletMap.current);
 
-      // Marcador de usuario
-      if (geoPos) {
-        const iconUser = L.divIcon({
-          html: `<div style="width:14px;height:14px;background:#0B2D5E;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3)"></div>`,
-          className:'', iconSize:[14,14], iconAnchor:[7,7],
-        });
-        L.marker([geoPos.lat, geoPos.lon], { icon: iconUser })
-          .addTo(leafletMap.current)
-          .bindPopup('<strong style="font-size:13px">📍 Tu ubicación</strong>');
-      }
       setListo(true);
     });
     return () => { mounted = false; };
   }, []);
 
-  // Agregar marcadores — geocoding server-side con caché Supabase
+  // Marcador de "tu ubicación" + círculo del radio de búsqueda (reactivo a geoPos/maxDist)
   useEffect(() => {
-    if (!listo || !leafletMap.current || !resultados.length) return;
+    if (!listo || !leafletMap.current) return;
+    const L = window.L;
+    if (userLayerRef.current) { userLayerRef.current.remove(); userLayerRef.current = null; }
+    if (!geoPos) return;
+
+    const layer = L.layerGroup().addTo(leafletMap.current);
+    const iconUser = L.divIcon({
+      html: `<div style="width:16px;height:16px;background:#3F53C4;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 4px rgba(63,83,196,0.25),0 2px 6px rgba(0,0,0,0.4)"></div>`,
+      className:'', iconSize:[16,16], iconAnchor:[8,8],
+    });
+    L.marker([geoPos.lat, geoPos.lon], { icon: iconUser, zIndexOffset: 1000 })
+      .addTo(layer)
+      .bindPopup('<strong style="font-size:13px">📍 Tu ubicación</strong>');
+    if (maxDist) {
+      L.circle([geoPos.lat, geoPos.lon], {
+        radius: maxDist * 1000, color:'#3F53C4', weight:1.5, opacity:0.5,
+        fillColor:'#3F53C4', fillOpacity:0.07,
+      }).addTo(layer);
+    }
+    userLayerRef.current = layer;
+  }, [listo, geoPos, maxDist]);
+
+  // Marcadores de farmacias — usa las coords provistas (sin geocodificar de nuevo)
+  useEffect(() => {
+    if (!listo || !leafletMap.current) return;
     const L = window.L;
 
     markersRef.current.forEach(m => m.remove());
     markersRef.current = [];
 
-    // Centrar en GPS inmediatamente sin esperar geocoding
-    if (geoPos) {
-      leafletMap.current.setView([geoPos.lat, geoPos.lon], 14);
+    const conCoords = puntos.filter(p => p.coords && isFinite(p.coords.lat) && isFinite(p.coords.lon));
+    if (!conCoords.length) {
+      if (geoPos) leafletMap.current.setView([geoPos.lat, geoPos.lon], 14);
+      return;
     }
 
-    const primeras = resultados.slice(0, 15);
-    const precios = primeras.map(r => parseFloat(r.precio2 || r.precio1 || r.precio3)).filter(p => p > 0);
-    const minP = Math.min(...precios);
-    const maxP = Math.max(...precios);
+    const precios = conCoords.map(p => p.precio).filter(x => x > 0);
+    const minP = precios.length ? Math.min(...precios) : 0;
+    const maxP = precios.length ? Math.max(...precios) : 0;
 
-    const agregarMarcadores = async () => {
-      const bounds = [];
+    const bounds = [];
+    conCoords.forEach(({ r, coords, precio }) => {
+      const color = getPrecioColor(precio, minP, maxP);
+      const esMinimo = precio > 0 && precio === minP;
+      const es24h = /24\s*h/i.test(r.nombreComercial || '');
+      const esPublico = r.setcodigo === 'Público';
 
-      // Geocodificar en el servidor (con caché Supabase)
-      let coordsResults = [];
-      try {
-        const resp = await fetch('/api/geocode', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            farmacias: primeras.map(r => ({ direccion: r.direccion, distrito: r.distrito }))
-          }),
-        });
-        const data = await resp.json();
-        coordsResults = data.coords || [];
-      } catch { return; }
+      const icon = L.divIcon({
+        html: `<div style="background:${color};color:#fff;border-radius:20px;padding:3px 8px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.25);border:2px solid rgba(255,255,255,0.9)">${es24h ? '🌙 ' : ''}S/${precio.toFixed(2)}</div>`,
+        className:'', iconSize:[60,22], iconAnchor:[30,11],
+      });
 
-      for (let i = 0; i < primeras.length; i++) {
-        const r = primeras[i];
-        const precio = parseFloat(r.precio2 || r.precio1 || r.precio3);
-        if (!precio) continue;
+      const gmapsUrl = `https://maps.google.com/?q=${encodeURIComponent(`${r.nombreComercial} ${r.direccion} ${r.distrito || ''} Lima Peru`)}`;
 
-        const c = coordsResults[i];
-        if (!c) continue;
-        const coords = [c.lat, c.lon];
-
-        const color = getPrecioColor(precio, minP, maxP);
-        const esMinimo = precio === minP;
-        const es24h = /24\s*h/i.test(r.nombreComercial || '');
-        const esPublico = r.setcodigo === 'Público';
-
-        const icon = L.divIcon({
-          html: `<div style="background:${color};color:#fff;border-radius:20px;padding:4px 9px;font-size:11px;font-weight:700;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.25);border:2px solid rgba(255,255,255,0.9)">${es24h ? '🌙 ' : ''}S/${precio.toFixed(2)}</div>`,
-          className:'', iconSize:[70,24], iconAnchor:[35,12],
-        });
-
-        const gmapsUrl = `https://maps.google.com/?q=${encodeURIComponent(`${r.nombreComercial} ${r.direccion} ${r.distrito || ''} Lima Peru`)}`;
-
-        const marker = L.marker(coords, { icon }).addTo(leafletMap.current);
-        marker.bindPopup(L.popup({ maxWidth:260 }).setContent(`
-          <div style="font-family:-apple-system,sans-serif;padding:2px">
-            <div style="font-weight:700;font-size:13px;color:#111827;margin-bottom:4px">${r.nombreComercial || ''}</div>
-            <div style="font-size:11px;color:#6B7280;margin-bottom:6px;line-height:1.4">${r.direccion || ''}${r.distrito ? ', '+r.distrito : ''}</div>
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-              <span style="font-size:18px;font-weight:800;color:${color}">S/ ${precio.toFixed(2)}</span>
-              ${esMinimo ? '<span style="background:#FEF3C7;color:#92400E;font-size:10px;padding:2px 6px;border-radius:8px;font-weight:600">⭐ Más barato</span>' : ''}
-            </div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
-              ${es24h ? '<span style="background:#EDE9FE;color:#5B21B6;font-size:10px;padding:2px 6px;border-radius:8px;font-weight:600">🌙 24h</span>' : ''}
-              ${esPublico ? '<span style="background:#DBEAFE;color:#1D4ED8;font-size:10px;padding:2px 6px;border-radius:8px;font-weight:600">Público</span>' : '<span style="background:#FEE2E2;color:#991B1B;font-size:10px;padding:2px 6px;border-radius:8px;font-weight:600">Privado</span>'}
-              ${r.telefono ? `<span style="font-size:10px;color:#6B7280">📞 ${r.telefono}</span>` : ''}
-            </div>
-            <a href="${gmapsUrl}" target="_blank" style="display:block;text-align:center;background:#0A7B5E;color:#fff;text-decoration:none;padding:7px;border-radius:8px;font-size:12px;font-weight:600">🗺 Cómo llegar</a>
+      const marker = L.marker([coords.lat, coords.lon], { icon }).addTo(leafletMap.current);
+      marker.bindPopup(L.popup({ maxWidth:260 }).setContent(`
+        <div style="font-family:-apple-system,sans-serif;padding:2px">
+          <div style="font-weight:700;font-size:13px;color:#111827;margin-bottom:4px">${r.nombreComercial || ''}</div>
+          <div style="font-size:11px;color:#6B7280;margin-bottom:6px;line-height:1.4">${r.direccion || ''}${r.distrito ? ', '+r.distrito : ''}</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <span style="font-size:18px;font-weight:800;color:${color}">S/ ${precio.toFixed(2)}</span>
+            ${esMinimo ? '<span style="background:#FEF3C7;color:#92400E;font-size:10px;padding:2px 6px;border-radius:8px;font-weight:600">⭐ Más barato</span>' : ''}
           </div>
-        `));
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+            ${es24h ? '<span style="background:#EDE9FE;color:#5B21B6;font-size:10px;padding:2px 6px;border-radius:8px;font-weight:600">🌙 24h</span>' : ''}
+            ${esPublico ? '<span style="background:#DBEAFE;color:#1D4ED8;font-size:10px;padding:2px 6px;border-radius:8px;font-weight:600">Público</span>' : '<span style="background:#FEE2E2;color:#991B1B;font-size:10px;padding:2px 6px;border-radius:8px;font-weight:600">Privado</span>'}
+            ${r.telefono ? `<span style="font-size:10px;color:#6B7280">📞 ${r.telefono}</span>` : ''}
+          </div>
+          <a href="${gmapsUrl}" target="_blank" style="display:block;text-align:center;background:#0A7B5E;color:#fff;text-decoration:none;padding:7px;border-radius:8px;font-size:12px;font-weight:600">🗺 Cómo llegar</a>
+        </div>
+      `));
 
-        bounds.push(coords);
-        markersRef.current.push(marker);
+      bounds.push([coords.lat, coords.lon]);
+      markersRef.current.push(marker);
+    });
 
-      }
+    const todo = [...bounds];
+    if (geoPos) todo.push([geoPos.lat, geoPos.lon]);
+    if (todo.length) leafletMap.current.fitBounds(todo, { padding:[40,40], maxZoom:16 });
+  }, [listo, puntos, geoPos]);
 
-      if (bounds.length > 0) {
-        leafletMap.current.fitBounds(bounds, { padding:[30,30], maxZoom:15 });
-      }
-    };
-
-    agregarMarcadores();
-  }, [listo, resultados]);
+  const ubicadas = puntos.filter(p => p.coords).length;
 
   return (
     <div style={{position:'relative',width:'100%'}}>
@@ -235,14 +224,14 @@ export function MapaFarmacias({ resultados, geoPos }) {
         </div>
       </div>
 
-      {/* Nota de posición aproximada */}
+      {/* Nota de cobertura */}
       <div style={{
         position:'absolute',top:10,left:'50%',transform:'translateX(-50%)',
         zIndex:1000,background:'rgba(11,45,94,0.85)',color:'#fff',
         borderRadius:20,padding:'5px 14px',fontSize:11,fontWeight:500,
         whiteSpace:'nowrap',
       }}>
-        Mostrando {Math.min(15, resultados.length)} de {resultados.length} farmacias
+        {ubicadas > 0 ? `Ubicadas ${ubicadas} de ${puntos.length} farmacias` : 'Ubicando farmacias…'}
       </div>
 
       <div ref={mapRef} style={{width:'100%',height:'430px',borderRadius:12,zIndex:1}}/>

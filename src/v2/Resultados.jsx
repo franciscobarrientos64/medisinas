@@ -67,15 +67,15 @@ export function BadgeHorario({ nombre, setcodigo, estado: estadoProp }) {
 const btnCls = "flex items-center gap-1.5 px-3 py-1.5 bg-surface-container-low border border-outline-variant/50 rounded-full text-[12px] font-medium hover:bg-surface-container-high transition-colors";
 const ICON = { maps: "https://cdn.simpleicons.org/googlemaps", waze: "https://cdn.simpleicons.org/waze/05C8F7", wa: "https://cdn.simpleicons.org/whatsapp/25D366" };
 
-// Cadenas conocidas → color de marca (y dominio para logo). Si no coincide, no se muestra nada.
+// Cadenas conocidas → color de marca. Si no coincide, no se muestra nada.
 const CADENAS = [
-  { m: ["INKAFARMA", "INKA FARMA"], n: "InkaFarma", c: "#F5C800", t: "#1A1A1A", dom: "inkafarma.pe" },
-  { m: ["MIFARMA", "MI FARMA"], n: "MiFarma", c: "#E2001A", t: "#FFFFFF", dom: "mifarma.com.pe" },
-  { m: ["ARCANGEL", "ARCÁNGEL"], n: "Arcángel", c: "#6A1B9A", t: "#FFFFFF", dom: "boticasarcangel.com" },
-  { m: ["BOTICAS Y SALUD", "BOTICA Y SALUD", "BTL"], n: "Boticas y Salud", c: "#0067B1", t: "#FFFFFF", dom: "boticasysalud.com.pe" },
-  { m: ["UNIVERSAL"], n: "Universal", c: "#005BAC", t: "#FFFFFF", dom: "farmaciauniversal.com.pe" },
-  { m: ["SUPERFARMA", "SUPER FARMA"], n: "Superfarma", c: "#E8521A", t: "#FFFFFF", dom: "superfarma.pe" },
-  { m: ["FASA"], n: "Fasa", c: "#E30613", t: "#FFFFFF", dom: "fasa.com.pe" },
+  { m: ["INKAFARMA", "INKA FARMA"], n: "InkaFarma", c: "#F5C800", t: "#1A1A1A" },
+  { m: ["MIFARMA", "MI FARMA"], n: "MiFarma", c: "#E2001A", t: "#FFFFFF" },
+  { m: ["ARCANGEL", "ARCÁNGEL"], n: "Arcángel", c: "#6A1B9A", t: "#FFFFFF" },
+  { m: ["BOTICAS Y SALUD", "BOTICA Y SALUD", "BTL"], n: "Boticas y Salud", c: "#0067B1", t: "#FFFFFF" },
+  { m: ["UNIVERSAL"], n: "Universal", c: "#005BAC", t: "#FFFFFF" },
+  { m: ["SUPERFARMA", "SUPER FARMA"], n: "Superfarma", c: "#E8521A", t: "#FFFFFF" },
+  { m: ["FASA"], n: "Fasa", c: "#E30613", t: "#FFFFFF" },
   { m: ["MAS FARMA", "MÁSFARMA", "MASFARMA"], n: "MásFarma", c: "#00A19A", t: "#FFFFFF" },
   { m: ["FARMACITY"], n: "Farmacity", c: "#E2001A", t: "#FFFFFF" },
   { m: ["FARMAMINSA", "FARMA MINSA"], n: "FarmaMinsa", c: "#1565C0", t: "#FFFFFF" },
@@ -85,25 +85,14 @@ function getCadena(nombre) {
   return CADENAS.find((c) => c.m.some((p) => u.includes(p))) || null;
 }
 
-// Logo/marca a la derecha de cada resultado. Intenta el logo real (Clearbit) y cae
-// a un monograma en el color de la cadena. Para farmacias sin cadena conocida: nada.
+// Marca pequeña a la derecha: monograma en el color de la cadena.
+// Para farmacias sin cadena conocida no se muestra nada.
 function LogoFarmacia({ nombre }) {
   const cad = getCadena(nombre);
-  const [err, setErr] = useState(false);
   if (!cad) return null;
-  if (cad.dom && !err) {
-    return (
-      <img
-        src={`https://logo.clearbit.com/${cad.dom}`}
-        alt={cad.n}
-        onError={() => setErr(true)}
-        className="w-10 h-10 rounded-lg object-contain bg-white border border-outline-variant/30 p-0.5"
-      />
-    );
-  }
   const ini = cad.n.split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
   return (
-    <span className="w-10 h-10 rounded-lg flex items-center justify-center text-[13px] font-extrabold shrink-0" style={{ background: cad.c, color: cad.t }} title={cad.n}>
+    <span className="w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-extrabold shrink-0" style={{ background: cad.c, color: cad.t }} title={cad.n}>
       {ini}
     </span>
   );
@@ -133,6 +122,7 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
   const [geoPos, setGeoPos] = useState(null);
   const [maxDist, setMaxDist] = useState(15);
   const [vista, setVista] = useState("lista"); // lista | mapa
+  const [coordsArr, setCoordsArr] = useState([]); // coords geocodificadas, alineadas a `resultados`
 
   const ubigeo = loc?.ubigeo ?? null;
   const dep = loc?.dep ?? 15;
@@ -188,6 +178,23 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
 
   useEffect(() => { buscar(); }, [buscar]);
 
+  // Geocodifica las direcciones (caché Supabase) para tener posiciones precisas
+  // compartidas por la lista (filtro de radio) y el mapa. Tope del API: 15/búsqueda.
+  useEffect(() => {
+    setCoordsArr([]);
+    if (!resultados.length) return;
+    let cancel = false;
+    const lote = resultados.slice(0, 15);
+    fetch("/api/geocode", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ farmacias: lote.map((r) => ({ direccion: r.direccion, distrito: r.distrito })) }),
+    })
+      .then((r) => r.json())
+      .then((d) => { if (!cancel) setCoordsArr(d.coords || []); })
+      .catch(() => {});
+    return () => { cancel = true; };
+  }, [resultados]);
+
   const usarUbicacion = () => {
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
@@ -204,10 +211,11 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
   }, [resultados]);
 
   const { lista, minP, maxP, ahorro } = useMemo(() => {
-    let arr = resultados.map((r) => {
-      const coords = parseCoords(r.geolocation);
+    let arr = resultados.map((r, i) => {
+      const coords = coordsArr[i] || parseCoords(r.geolocation);
       return {
         r,
+        coords,
         estado: getEstadoFarmacia(r.nombreComercial, r.setcodigo).estado,
         precio: precioDe(r),
         esGenerico: ["04", "06"].includes(r.catCodigo),
@@ -232,7 +240,7 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
     const mn = precios.length ? Math.min(...precios) : null;
     const mx = precios.length ? Math.max(...precios) : null;
     return { lista: arr, minP: mn, maxP: mx, ahorro: mn && mx ? mx - mn : 0 };
-  }, [resultados, soloAbiertas, solo24h, tipoFiltro, maxPrecio, geoPos, maxDist, sortBy]);
+  }, [resultados, coordsArr, soloAbiertas, solo24h, tipoFiltro, maxPrecio, geoPos, maxDist, sortBy]);
 
   const TipoBtn = ({ id, label }) => (
     <button onClick={() => setTipoFiltro(id)} className={`px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all ${tipoFiltro === id ? "bg-white text-primary" : "glass-card text-white hover:bg-white/20"}`}>{label}</button>
@@ -361,7 +369,7 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
 
           {/* Vista mapa */}
           {!loading && vista === "mapa" && lista.length > 0 && (
-            <MapaFarmacias resultados={lista.map((x) => x.r)} geoPos={geoPos} />
+            <MapaFarmacias puntos={lista} geoPos={geoPos} maxDist={geoPos ? maxDist : null} />
           )}
 
           {/* Vista lista */}
