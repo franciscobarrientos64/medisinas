@@ -42,7 +42,10 @@ export default function Buscador({ onSelectVariante, onSearchText, placeholder, 
 
   const pickMedicina = (m) => { setQ(m); setSintoma(null); setSugerencias([]); setShowSug(true); fetchVariants(m); };
 
-  const elegirVariante = (v) => { setShowSug(false); setQ(""); onSelectVariante(v); };
+  const elegirVariante = (v) => {
+    console.log("[Medisinas] variante elegida:", { nombre: v.nombreProducto, concent: v.concent, grupo: v.grupo, codGrupoFF: v.codGrupoFF });
+    setShowSug(false); setQ(""); onSelectVariante(v);
+  };
   const submitTexto = () => { if (q.trim()) { setShowSug(false); onSearchText(q.trim()); setQ(""); } };
 
   const hayDropdown = showSug && (cargando || sugerencias.length > 0 || sintoma);

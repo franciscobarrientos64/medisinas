@@ -65,6 +65,7 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
 
   const buscar = useCallback(async () => {
     if (!query) return;
+    console.log("[Medisinas] Resultados recibió preVariante:", preVariante ? { nombre: preVariante.nombreProducto, concent: preVariante.concent, codGrupoFF: preVariante.codGrupoFF } : null, "| query:", query);
     setLoading(true);
     setBuscado(true);
     setResultados([]);
