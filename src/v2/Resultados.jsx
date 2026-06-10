@@ -46,6 +46,11 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
   const distritoEspecifico = loc?.distrito && loc.distrito !== "Todos los distritos" ? loc.distrito : null;
   const zonaTxt = loc ? (distritoEspecifico ? `${loc.ciudad} · ${loc.distrito}` : (loc.ciudad || loc.region || "Todo el Perú")) : "Todos Lima";
 
+  // Texto completo de lo buscado (nombre + concentración + forma)
+  const tituloBusqueda = variante
+    ? `${variante.nombreProducto}${variante.concent ? " " + variante.concent : ""}${variante.nombreFormaFarmaceutica ? " · " + variante.nombreFormaFarmaceutica : ""}`
+    : (query || "—");
+
   const registrarBusqueda = useCallback(
     (vari, precios) => {
       const user = getLocalUser();
@@ -65,7 +70,6 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
 
   const buscar = useCallback(async () => {
     if (!query) return;
-    console.log("[Medisinas] Resultados recibió preVariante:", preVariante ? { nombre: preVariante.nombreProducto, concent: preVariante.concent, codGrupoFF: preVariante.codGrupoFF } : null, "| query:", query);
     setLoading(true);
     setBuscado(true);
     setResultados([]);
@@ -157,7 +161,7 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
         <div className="max-w-5xl mx-auto space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-2">
             <div className="space-y-1">
-              <span className="text-on-surface-variant text-body-sm block">Resultados para <strong>"{variante?.nombreProducto || query || "—"}"</strong></span>
+              <span className="text-on-surface-variant text-body-sm block">Resultados para <strong>"{tituloBusqueda}"</strong></span>
               {variante && (
                 <div className="flex gap-2 flex-wrap">
                   {variante.nomGrupoFF && <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-full text-[10px] font-bold uppercase">{variante.nomGrupoFF}</span>}
