@@ -25,22 +25,25 @@ export async function buscarVariantes(nombre) {
   return [];
 }
 export async function consultarPrecios(grupo, codGrupoFF, concent, ubigeo, depCod, provCod, pagina = 1, tamanio = 50) {
-  const data = await callProxy('preciovista/ciudadano', {
-    filtro: {
-      codigoProducto: grupo,
-      codigoDepartamento: depCod || null,
-      codigoProvincia: provCod || null,
-      codigoUbigeo: ubigeo || null,
-      codTipoEstablecimiento: null,
-      catEstablecimiento: null,
-      codGrupoFF: String(codGrupoFF),
-      concent: concent,
-      tamanio: tamanio,
-      pagina: pagina,
-      tokenGoogle: 'token',
-      nombreProducto: null,
-    }
-  });
-  if (data?.codigo === '00') return { registros: data.data || [], cantidad: data.cantidad || 0 };
+  const filtro = {
+    codigoProducto: grupo,
+    codigoDepartamento: depCod || null,
+    codigoProvincia: provCod || null,
+    codigoUbigeo: ubigeo || null,
+    codTipoEstablecimiento: null,
+    catEstablecimiento: null,
+    codGrupoFF: String(codGrupoFF),
+    concent: concent,
+    tamanio: tamanio,
+    pagina: pagina,
+    tokenGoogle: 'token',
+    nombreProducto: null,
+  };
+  // Reintenta: DIGEMID es inestable y a veces devuelve error transitorio.
+  for (let i = 0; i < 3; i++) {
+    const data = await callProxy('preciovista/ciudadano', { filtro });
+    if (data?.codigo === '00') return { registros: data.data || [], cantidad: data.cantidad || 0 };
+    if (i < 2) await new Promise(r => setTimeout(r, 700 * (i + 1)));
+  }
   return { registros: [], cantidad: 0 };
 }
