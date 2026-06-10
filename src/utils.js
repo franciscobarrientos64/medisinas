@@ -49,6 +49,19 @@ export const SINTOMAS = {
   'conjuntivitis': ['CLORANFENICOL OFTALMICA','TOBRAMICINA'],
   'hongos': ['FLUCONAZOL','CLOTRIMAZOL'],
   'asma': ['SALBUTAMOL','BUDESONIDA'],
+  'dolor de estomago': ['OMEPRAZOL','PANTOPRAZOL','HIOSCINA'],
+  'dolor de barriga': ['HIOSCINA','OMEPRAZOL','METAMIZOL SODICO'],
+  'colico': ['HIOSCINA','METAMIZOL SODICO'],
+  'acidez': ['OMEPRAZOL','RANITIDINA','HIDROXIDO DE ALUMINIO'],
+  'reflujo': ['OMEPRAZOL','PANTOPRAZOL'],
+  'estreñimiento': ['BISACODILO','LACTULOSA'],
+  'vomito': ['METOCLOPRAMIDA','DIMENHIDRINATO','DOMPERIDONA'],
+  'migraña': ['SUMATRIPTAN','PARACETAMOL','IBUPROFENO'],
+  'resfrio': ['PARACETAMOL','CLORFENAMINA MALEATO','PSEUDOEFEDRINA'],
+  'resfriado': ['PARACETAMOL','CLORFENAMINA MALEATO','PSEUDOEFEDRINA'],
+  'dolor de muela': ['IBUPROFENO','PARACETAMOL','NAPROXENO SODICO'],
+  'dolor menstrual': ['IBUPROFENO','NAPROXENO SODICO','PARACETAMOL'],
+  'mareo': ['DIMENHIDRINATO','METOCLOPRAMIDA'],
 };
 
 export const DISCLAIMER_SINTOMA = '⚠️ Información orientativa únicamente. No reemplaza la consulta médica.';

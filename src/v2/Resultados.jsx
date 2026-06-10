@@ -39,9 +39,10 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
   const [sortBy, setSortBy] = useState("precio");
   const [soloAbiertas, setSoloAbiertas] = useState(false);
 
-  const dep = loc?.dep ?? 15;
-  const prov = loc?.prov ?? 1501;
+  // DIGEMID: solo se envía provincia cuando hay un distrito específico (igual que la app original).
   const ubigeo = loc?.ubigeo ?? null;
+  const dep = loc?.dep ?? 15;
+  const prov = ubigeo ? (loc?.prov ?? null) : null;
   const distritoEspecifico = loc?.distrito && loc.distrito !== "Todos los distritos" ? loc.distrito : null;
   const zonaTxt = loc ? (distritoEspecifico ? `${loc.ciudad} · ${loc.distrito}` : (loc.ciudad || loc.region || "Todo el Perú")) : "Todos Lima";
 
