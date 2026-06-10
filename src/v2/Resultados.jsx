@@ -2,10 +2,47 @@ import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { buscarVariantes, consultarPrecios } from "../digemidApi";
 import { getEstadoFarmacia } from "../horarios";
 import { getLocalUser } from "../UserAuth";
-import { compartirWhatsApp, calcularDistancia } from "../utils";
+import { compartirWhatsApp, calcularDistancia, agregarAlHistorial } from "../utils";
 
 export const fmt = (n) => `S/ ${Number(n).toFixed(2)}`;
 export const precioDe = (r) => r.precio2 || r.precio1 || r.precio3 || 0;
+
+const sinTildes = (s) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "");
+const normConc = (s) => sinTildes(s).toLowerCase().replace(/\s+/g, "");
+
+// Separa "Losartán 50mg" -> { nombre: "Losartán", conc: "50mg" }
+function partirNombreConcent(texto) {
+  const m = (texto || "").match(/^(.*?)\s*(\d[\d.,]*\s*(?:mg|mcg|g|ml|ui|%)(?:\s*\/\s*[\d.,]*\s*(?:mg|mcg|g|ml))?)\s*$/i);
+  if (m && m[1].trim()) return { nombre: m[1].trim(), conc: m[2] };
+  return { nombre: (texto || "").trim(), conc: null };
+}
+
+// Devuelve variantes DIGEMID candidatas para un texto libre, tolerante a tildes y a
+// la concentración pegada al nombre (p. ej. "Losartán 50mg" desde un chip reciente).
+// Ordena primero las que coinciden con la concentración pedida; dedup por producto.
+async function candidatasVariantes(query) {
+  const { nombre, conc } = partirNombreConcent(query);
+  const intentos = [query, nombre, sinTildes(query), sinTildes(nombre)]
+    .map((s) => (s || "").trim())
+    .filter((s, i, a) => s && a.indexOf(s) === i);
+  let vars = [];
+  for (const term of intentos) {
+    vars = await buscarVariantes(term);
+    if (vars.length) break;
+  }
+  const seen = new Set();
+  const dedup = [];
+  for (const v of vars) {
+    const k = `${v.grupo}|${v.codGrupoFF}|${v.concent}`;
+    if (!seen.has(k)) { seen.add(k); dedup.push(v); }
+  }
+  if (conc) {
+    const c = normConc(conc);
+    const coincide = (v) => { const vc = normConc(v.concent); return vc && (vc === c || vc.startsWith(c) || c.startsWith(vc)); };
+    dedup.sort((a, b) => (coincide(b) ? 1 : 0) - (coincide(a) ? 1 : 0));
+  }
+  return dedup;
+}
 
 const BADGE = {
   abierto: { txt: "Abierto", cls: "bg-green-100 text-green-700", dot: "bg-green-500 animate-pulse" },
@@ -78,18 +115,26 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
     if (!query) return;
     setLoading(true); setBuscado(true); setResultados([]); setMaxPrecio(null);
     try {
-      let vari = preVariante;
-      if (!vari) { const vars = await buscarVariantes(query); vari = vars[0]; }
-      if (!vari) { setVariante(null); setLoading(false); return; }
-      setVariante(vari);
-      const { registros } = await consultarPrecios(vari.grupo, vari.codGrupoFF, vari.concent, ubigeo, dep, prov, 1, 100);
-      let regs = registros;
-      if (vari.concent) {
-        const exact = regs.filter((r) => (r.concent || "") === vari.concent);
+      // Candidatos a probar: la variante exacta (desplegable/reciente) o, para texto
+      // libre, varias candidatas hasta dar con una que tenga precios publicados.
+      const candidatos = preVariante ? [preVariante] : (await candidatasVariantes(query)).slice(0, 5);
+      if (!candidatos.length) { setVariante(null); setLoading(false); return; }
+
+      let usada = null, regs = [];
+      for (const c of candidatos) {
+        const { registros } = await consultarPrecios(c.grupo, c.codGrupoFF, c.concent, ubigeo, dep, prov, 1, 100);
+        if (!usada) usada = c; // recuerda la primera por si ninguna trae precios
+        if (registros.length) { usada = c; regs = registros; break; }
+      }
+
+      setVariante(usada);
+      agregarAlHistorial(usada);
+      if (usada.concent) {
+        const exact = regs.filter((r) => (r.concent || "") === usada.concent);
         if (exact.length) regs = exact;
       }
       setResultados(regs);
-      registrarBusqueda(vari, regs.map(precioDe).filter((p) => p > 0));
+      registrarBusqueda(usada, regs.map(precioDe).filter((p) => p > 0));
     } catch (e) {
       console.error("buscar error:", e);
     }

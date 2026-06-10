@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { UBIGEOS } from "../ubigeos";
+import { getHistorial } from "../utils";
 import Buscador from "./Buscador";
 
 const FRECUENTES = ["Paracetamol 500mg", "Losartán 50mg", "Metformina 850mg", "Atorvastatina 20mg"];
@@ -26,6 +27,7 @@ export default function Home({ go, activePersona }) {
   const [region, setRegion] = useState("LIMA METROPOLITANA");
   const [ciudad, setCiudad] = useState("Lima");
   const [distrito, setDistrito] = useState("Todos los distritos");
+  const recientes = useMemo(() => getHistorial(), []);
 
   const provincias = useMemo(() => Object.keys(UBIGEOS[region]?.provincias || {}), [region]);
   const distritos = useMemo(() => Object.keys(UBIGEOS[region]?.provincias?.[ciudad]?.distritos || {}), [region, ciudad]);
@@ -80,11 +82,33 @@ export default function Home({ go, activePersona }) {
             <MiniSelect value={distrito} onChange={(e) => setDistrito(e.target.value)}>{distritos.map((d) => <option key={d} value={d}>{d}</option>)}</MiniSelect>
           </div>
 
-          <div className="flex gap-2 flex-wrap mt-4">
-            {FRECUENTES.map((m) => (
-              <button key={m} onClick={() => go("resultados", { query: m, loc: getLoc() })} className="px-4 py-1.5 rounded-full bg-surface-container-high text-on-surface-variant text-[13px] hover:bg-surface-container-highest transition-all">{m}</button>
-            ))}
-          </div>
+          {/* Recientes (variante completa → búsqueda confiable) o sugerencias */}
+          {recientes.length > 0 ? (
+            <div className="mt-5">
+              <p className="font-label-caps text-label-caps uppercase tracking-widest text-on-surface-variant mb-2">Tus búsquedas recientes</p>
+              <div className="flex gap-2 flex-wrap">
+                {recientes.map((v, i) => (
+                  <button
+                    key={`${v.grupo}-${v.codGrupoFF}-${v.concent}-${i}`}
+                    onClick={() => go("resultados", { query: `${v.nombreProducto}${v.concent ? " " + v.concent : ""}`, loc: getLoc(), variante: v })}
+                    className="flex items-center gap-1.5 pl-3 pr-4 py-1.5 rounded-full bg-surface-container-high text-on-surface-variant text-[13px] hover:bg-surface-container-highest transition-all"
+                  >
+                    <span className="material-symbols-outlined text-[16px] text-primary">history</span>
+                    {v.nombreProducto}{v.concent ? <strong className="font-semibold ml-0.5">{v.concent}</strong> : null}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="mt-5">
+              <p className="font-label-caps text-label-caps uppercase tracking-widest text-on-surface-variant mb-2">Búsquedas frecuentes</p>
+              <div className="flex gap-2 flex-wrap">
+                {FRECUENTES.map((m) => (
+                  <button key={m} onClick={() => go("resultados", { query: m, loc: getLoc() })} className="px-4 py-1.5 rounded-full bg-surface-container-high text-on-surface-variant text-[13px] hover:bg-surface-container-highest transition-all">{m}</button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3 mt-10">
             {ACCESOS.map((a) => (
