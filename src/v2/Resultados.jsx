@@ -85,7 +85,7 @@ const CADENAS = [
   { m: ["SUPERFARMA", "SUPER FARMA"], n: "Superfarma", c: "#E8521A", t: "#FFFFFF", dom: "superfarma.pe" },
   { m: ["FASA"], n: "Fasa", c: "#E30613", t: "#FFFFFF", dom: "fasa.com.pe" },
   { m: ["MAS FARMA", "MÁSFARMA", "MASFARMA"], n: "MásFarma", c: "#00A19A", t: "#FFFFFF" },
-  { m: ["FARMACITY"], n: "Farmacity", c: "#E2001A", t: "#FFFFFF", dom: "farmacity.com" },
+  { m: ["FARMACITY"], n: "Farmacity", c: "#E2001A", t: "#FFFFFF", dom: "farmacity.com", ld: true },
   { m: ["FARMAMINSA", "FARMA MINSA"], n: "FarmaMinsa", c: "#1565C0", t: "#FFFFFF" },
 ];
 function getCadena(nombre) {
