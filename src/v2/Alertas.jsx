@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { getLocalUser } from "../UserAuth";
 
-const fmt = (n) => `S/ ${Number(n || 0).toFixed(2)}`;
+const fmt = (n) => `S/ ${Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export default function Alertas({ go }) {
   const [alertas, setAlertas] = useState([]);

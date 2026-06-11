@@ -7,7 +7,7 @@ import { MapaFarmacias, getDistritoCoords } from "../MapaFarmacias";
 import { getEcommerceUrl } from "../farmacias";
 import Buscador from "./Buscador";
 
-export const fmt = (n) => `S/ ${Number(n).toFixed(2)}`;
+export const fmt = (n) => `S/ ${Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 export const precioDe = (r) => r.precio2 || r.precio1 || r.precio3 || 0;
 
 const sinTildes = (s) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "");
@@ -151,6 +151,7 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
   const [vista, setVista] = useState("lista"); // lista | mapa
   const [coordsArr, setCoordsArr] = useState([]); // coords geocodificadas, alineadas a `resultados`
   const [servicioError, setServicioError] = useState(false); // DIGEMID no respondió (timeout/502)
+  const [guardado, setGuardado] = useState(""); // feedback de "Guardar medicina"
 
   const ubigeo = loc?.ubigeo ?? null;
   const dep = loc?.dep ?? 15;
@@ -225,6 +226,26 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
     return () => { cancel = true; };
   }, [resultados]);
 
+  const guardarMed = async () => {
+    const user = getLocalUser();
+    if (!user?.id) { go("login"); return; }
+    if (!variante) return;
+    setGuardado("guardando");
+    const res = await fetch("/api/data?action=save-medicamento", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        userId: user.id, persona_id: activePersona?.id || null,
+        medicamento: {
+          nombreProducto: variante.nombreProducto, concent: variante.concent,
+          nombreFormaFarmaceutica: variante.nombreFormaFarmaceutica || variante.nomGrupoFF,
+          grupo: variante.grupo, codGrupoFF: variante.codGrupoFF,
+        },
+      }),
+    }).then((r) => r.json()).catch(() => ({}));
+    setGuardado(res.success ? "ok" : "error");
+    setTimeout(() => setGuardado(""), 2800);
+  };
+
   const usarUbicacion = () => {
     if (!navigator.geolocation) { setGeoEstado("no-soportado"); return; }
     setGeoEstado("cargando");
@@ -295,6 +316,18 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
                 : "No encontramos resultados."}
             </p>
           </div>
+
+          {/* Guardar medicina */}
+          {variante && (
+            <div>
+              <button onClick={guardarMed} disabled={guardado === "guardando"} className="w-full flex items-center justify-center gap-2 bg-white text-primary font-bold rounded-full px-6 py-3 hover:shadow-lg transition-all active:scale-95 disabled:opacity-70">
+                <span className="material-symbols-outlined text-[20px]">{guardado === "ok" ? "bookmark_added" : "bookmark_add"}</span>
+                {guardado === "guardando" ? "Guardando…" : guardado === "ok" ? "Guardada" : "Guardar medicina"}
+              </button>
+              {guardado === "ok" && <p className="text-[12px] text-white/85 mt-1.5 text-center">✓ En "Mis medicinas" para recordatorios de recompra.</p>}
+              {guardado === "error" && <p className="text-[12px] text-white/85 mt-1.5 text-center">No se pudo guardar. Intenta de nuevo.</p>}
+            </div>
+          )}
 
           {/* Nueva búsqueda — mismo buscador con autocompletado del Home */}
           <div>
