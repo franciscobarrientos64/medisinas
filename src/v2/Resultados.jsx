@@ -145,6 +145,7 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
   const [tipoFiltro, setTipoFiltro] = useState("todos"); // todos | generico | marca
   const [maxPrecio, setMaxPrecio] = useState(null);
   const [geoPos, setGeoPos] = useState(null);
+  const [geoEstado, setGeoEstado] = useState("idle"); // idle | cargando | denegado | error | no-soportado
   const [maxDist, setMaxDist] = useState(15);
   const [vista, setVista] = useState("lista"); // lista | mapa
   const [coordsArr, setCoordsArr] = useState([]); // coords geocodificadas, alineadas a `resultados`
@@ -221,11 +222,12 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
   }, [resultados]);
 
   const usarUbicacion = () => {
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) { setGeoEstado("no-soportado"); return; }
+    setGeoEstado("cargando");
     navigator.geolocation.getCurrentPosition(
-      (p) => setGeoPos({ lat: p.coords.latitude, lon: p.coords.longitude }),
-      () => setGeoPos(null),
-      { enableHighAccuracy: false, timeout: 8000 }
+      (p) => { setGeoPos({ lat: p.coords.latitude, lon: p.coords.longitude }); setGeoEstado("idle"); },
+      (err) => { setGeoPos(null); setGeoEstado(err && err.code === 1 ? "denegado" : "error"); },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
     );
   };
 
@@ -316,7 +318,15 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
               {geoPos ? (
                 <input type="range" min="1" max="30" step="1" value={maxDist} onChange={(e) => setMaxDist(parseInt(e.target.value, 10))} className="w-full accent-white cursor-pointer" />
               ) : (
-                <button onClick={usarUbicacion} className="w-full py-2 rounded-full bg-white/15 hover:bg-white/25 text-body-sm flex items-center justify-center gap-2"><span className="material-symbols-outlined text-[18px]">my_location</span> Usar mi ubicación</button>
+                <>
+                  <button onClick={usarUbicacion} disabled={geoEstado === "cargando"} className="w-full py-2 rounded-full bg-white/15 hover:bg-white/25 disabled:opacity-60 text-body-sm flex items-center justify-center gap-2">
+                    <span className={`material-symbols-outlined text-[18px] ${geoEstado === "cargando" ? "animate-spin" : ""}`}>{geoEstado === "cargando" ? "progress_activity" : "my_location"}</span>
+                    {geoEstado === "cargando" ? "Obteniendo ubicación…" : "Usar mi ubicación"}
+                  </button>
+                  {geoEstado === "denegado" && <p className="text-[11px] text-white/70 mt-1.5">Permiso denegado. Habilita la ubicación para este sitio en tu navegador y vuelve a intentar.</p>}
+                  {geoEstado === "error" && <p className="text-[11px] text-white/70 mt-1.5">No pudimos obtener tu ubicación. Revisa el GPS o intenta de nuevo.</p>}
+                  {geoEstado === "no-soportado" && <p className="text-[11px] text-white/70 mt-1.5">Tu navegador no soporta geolocalización.</p>}
+                </>
               )}
             </div>
 
