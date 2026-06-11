@@ -117,7 +117,7 @@ function LogoFarmacia({ nombre }) {
   }
   const ini = cad.n.split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
   return (
-    <span className="w-7 h-7 rounded-md flex items-center justify-center text-[11px] font-extrabold shrink-0" style={{ background: cad.c, color: cad.t }} title={cad.n}>
+    <span className="font-marca w-7 h-7 rounded-md flex items-center justify-center text-[13px] leading-none shrink-0 pt-0.5" style={{ background: cad.c, color: cad.t }} title={cad.n}>
       {ini}
     </span>
   );
