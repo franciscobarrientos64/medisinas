@@ -320,7 +320,7 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
           {/* Guardar medicina */}
           {variante && (
             <div>
-              <button onClick={guardarMed} disabled={guardado === "guardando"} className="w-full flex items-center justify-center gap-2 bg-white text-primary font-bold rounded-full px-6 py-3 hover:shadow-lg transition-all active:scale-95 disabled:opacity-70">
+              <button onClick={guardarMed} disabled={guardado === "guardando"} className="w-full flex items-center justify-center gap-2 bg-secondary text-white ring-1 ring-white/40 font-bold rounded-full px-6 py-3 hover:bg-secondary-container hover:text-on-secondary-container hover:shadow-lg transition-all active:scale-95 disabled:opacity-70">
                 <span className="material-symbols-outlined text-[20px]">{guardado === "ok" ? "bookmark_added" : "bookmark_add"}</span>
                 {guardado === "guardando" ? "Guardando…" : guardado === "ok" ? "Guardada" : "Guardar medicina"}
               </button>

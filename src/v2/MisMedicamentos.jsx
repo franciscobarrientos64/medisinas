@@ -22,12 +22,17 @@ function estadoColor(d) {
 export default function MisMedicamentos({ go, activePersona }) {
   const [meds, setMeds] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const user = getLocalUser();
 
   const cargar = useCallback(() => {
     if (!user?.id) { setLoading(false); return; }
+    setLoading(true); setError(false);
     const qs = new URLSearchParams({ userId: user.id, ...(activePersona?.id ? { personaId: activePersona.id } : {}) });
-    fetch(`/api/data?action=get-medicamentos&${qs}`).then((r) => r.json()).then((d) => { setMeds(d.medicamentos || []); setLoading(false); }).catch(() => setLoading(false));
+    fetch(`/api/data?action=get-medicamentos&${qs}`, { signal: AbortSignal.timeout(20000) })
+      .then((r) => r.json())
+      .then((d) => { setMeds(d.medicamentos || []); setLoading(false); })
+      .catch(() => { setError(true); setLoading(false); });
   }, [user, activePersona]);
 
   useEffect(() => { cargar(); }, [cargar]);
@@ -62,7 +67,16 @@ export default function MisMedicamentos({ go, activePersona }) {
       </div>
 
       {loading ? (
-        <div className="py-24 flex justify-center"><span className="material-symbols-outlined animate-spin text-4xl text-primary">progress_activity</span></div>
+        <div className="py-24 flex flex-col items-center justify-center gap-3 text-on-surface-variant">
+          <span className="material-symbols-outlined animate-spin text-4xl text-primary">progress_activity</span>
+          <p className="text-body-sm">Cargando tus medicinas…</p>
+        </div>
+      ) : error ? (
+        <div className="flex flex-col items-center justify-center py-20 text-center text-on-surface-variant">
+          <span className="material-symbols-outlined text-5xl text-error mb-4">cloud_off</span>
+          <p className="text-body-md mb-4">Tardó demasiado en cargar. Revisa tu conexión e intenta de nuevo.</p>
+          <button onClick={cargar} className="px-8 py-3 bg-primary text-white font-bold rounded-full flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">refresh</span> Reintentar</button>
+        </div>
       ) : ordenados.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center text-on-surface-variant">
           <span className="material-symbols-outlined text-5xl text-outline mb-4">inventory_2</span>
