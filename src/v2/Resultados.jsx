@@ -422,16 +422,18 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
               <div key={`${r.codEstab}-${i}`} className={`clinical-card rounded-lg p-4 md:p-5 relative clinical-shadow ${esMejor ? "ring-1 ring-secondary/40" : ""}`}>
                 <div className="flex gap-4">
                   {/* Info */}
-                  <div className="flex-grow min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {esMejor && <span className="px-2 py-0.5 bg-secondary text-on-secondary text-[9px] font-label-caps tracking-widest rounded-full">MEJOR PRECIO</span>}
-                      <h3 className="text-[15px] md:text-base font-semibold text-on-surface">{r.nombreComercial || "Farmacia"}</h3>
-                      <BadgeHorario estado={estado} />
-                      {distKm != null && <span className="text-[10px] font-bold text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-full">{distKm.toFixed(1)} km</span>}
+                  <div className="flex flex-col flex-grow min-w-0">
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {esMejor && <span className="px-2 py-0.5 bg-secondary text-on-secondary text-[9px] font-label-caps tracking-widest rounded-full">MEJOR PRECIO</span>}
+                        <h3 className="text-[15px] md:text-base font-semibold text-on-surface">{r.nombreComercial || "Farmacia"}</h3>
+                        <BadgeHorario estado={estado} />
+                        {distKm != null && <span className="text-[10px] font-bold text-on-surface-variant bg-surface-container px-2 py-0.5 rounded-full">{distKm.toFixed(1)} km</span>}
+                      </div>
+                      <p className="text-[12px] text-on-surface-variant mt-0.5 truncate">{r.direccion || "Dirección no disponible"}{r.distrito ? ` · ${r.distrito}` : ""}</p>
                     </div>
-                    <p className="text-[12px] text-on-surface-variant mt-0.5 truncate">{r.direccion || "Dirección no disponible"}{r.distrito ? ` · ${r.distrito}` : ""}</p>
 
-                    <div className="flex flex-wrap gap-2 mt-3">
+                    <div className="flex flex-wrap gap-2 mt-auto pt-3">
                       {/* Cómo llegar */}
                       <div className="relative group/maps inline-block">
                         <button className={btnCls}><span className="material-symbols-outlined text-[16px]">directions</span> Cómo llegar</button>
