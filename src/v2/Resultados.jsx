@@ -3,7 +3,8 @@ import { buscarVariantes, consultarPrecios } from "../digemidApi";
 import { getEstadoFarmacia } from "../horarios";
 import { getLocalUser } from "../UserAuth";
 import { compartirWhatsApp, calcularDistancia, agregarAlHistorial } from "../utils";
-import { MapaFarmacias } from "../MapaFarmacias";
+import { MapaFarmacias, getDistritoCoords } from "../MapaFarmacias";
+import { getEcommerceUrl } from "../farmacias";
 import Buscador from "./Buscador";
 
 export const fmt = (n) => `S/ ${Number(n).toFixed(2)}`;
@@ -239,7 +240,9 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
 
   const { lista, minP, maxP, ahorro } = useMemo(() => {
     let arr = resultados.map((r, i) => {
-      const coords = coordsArr[i] || parseCoords(r.geolocation);
+      const coords = coordsArr[i] || parseCoords(r.geolocation); // precisas (mapa + badge km)
+      const cen = getDistritoCoords(r.distrito); // centroide del distrito (aprox, para filtrar)
+      const aprox = coords || (cen ? { lat: cen[0], lon: cen[1] } : null);
       return {
         r,
         coords,
@@ -247,19 +250,20 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
         precio: precioDe(r),
         esGenerico: ["04", "06"].includes(r.catCodigo),
         distKm: geoPos && coords ? calcularDistancia(geoPos.lat, geoPos.lon, coords.lat, coords.lon) : null,
+        distFiltro: geoPos && aprox ? calcularDistancia(geoPos.lat, geoPos.lon, aprox.lat, aprox.lon) : null,
       };
     });
     if (tipoFiltro === "generico") arr = arr.filter((x) => x.esGenerico);
     if (tipoFiltro === "marca") arr = arr.filter((x) => !x.esGenerico);
     if (maxPrecio != null) arr = arr.filter((x) => x.precio <= maxPrecio + 0.001);
     if (solo24h) arr = arr.filter((x) => x.estado === "24h");
-    if (geoPos) arr = arr.filter((x) => x.distKm == null || x.distKm <= maxDist); // sin coords no se ocultan
+    if (geoPos) arr = arr.filter((x) => x.distFiltro == null || x.distFiltro <= maxDist); // distancia aprox (centroide) si no hay precisas
     if (soloAbiertas) {
       arr = arr.filter((x) => x.estado !== "cerrado");
       const rank = (e) => (e === "abierto" || e === "24h" ? 0 : 1);
       arr.sort((a, b) => (rank(a.estado) !== rank(b.estado) ? rank(a.estado) - rank(b.estado) : (a.precio || 1e9) - (b.precio || 1e9)));
     } else if (sortBy === "distancia" && geoPos) {
-      arr.sort((a, b) => (a.distKm ?? 1e9) - (b.distKm ?? 1e9));
+      arr.sort((a, b) => (a.distFiltro ?? 1e9) - (b.distFiltro ?? 1e9));
     } else {
       arr.sort((a, b) => (sortBy === "precio" ? (a.precio || 1e9) - (b.precio || 1e9) : (a.r.nombreComercial || "").localeCompare(b.r.nombreComercial || "")));
     }
@@ -415,6 +419,8 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
             const tieneMulti = precioCaja && precioUnidad && precioCaja !== precioUnidad;
             const telDigits = (r.telefono || "").replace(/\D/g, "");
             const waNum = telDigits.length >= 9 ? "51" + telDigits.slice(-9) : null;
+            const eco = getEcommerceUrl(r.nombreComercial);
+            const compraQuery = (variante ? `${variante.nombreProducto} ${variante.concent || ""}` : (query || "")).trim();
             const dest = encodeURIComponent(`${r.nombreComercial || ""} ${r.direccion || ""} ${r.distrito || ""} Peru`);
             const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${dest}`;
             const wazeUrl = `https://waze.com/ul?q=${dest}&navigate=yes`;
@@ -464,7 +470,21 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
                       <span className="block text-[10px] text-on-surface-variant mt-0.5">{precioUnidad ? "por unidad" : "precio caja"}</span>
                       {tieneMulti && <span className="block text-[11px] font-semibold text-on-surface">{fmt(precioCaja)} · caja {r.fracciones || "?"}u</span>}
                     </div>
-                    <button onClick={() => go("detalle", { variante, loc, registro: r })} className={`px-4 py-2 text-[13px] font-bold rounded-full transition-all active:scale-95 ${esMejor ? "bg-primary text-white hover:bg-primary-container hover:shadow-lg" : "border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary hover:bg-primary/5"}`}>Ver detalle</button>
+                    <div className="flex flex-col items-end gap-1.5 w-full">
+                      {eco && (
+                        <a
+                          href={eco.buildUrl(compraQuery)}
+                          target="_blank"
+                          rel="noreferrer"
+                          title={eco.label}
+                          className="flex items-center justify-center gap-1.5 px-4 py-2 text-[13px] font-bold rounded-full transition-all active:scale-95 hover:shadow-lg w-full"
+                          style={{ background: eco.color, color: eco.textColor }}
+                        >
+                          <span className="material-symbols-outlined text-[16px]">shopping_cart</span> Comprar
+                        </a>
+                      )}
+                      <button onClick={() => go("detalle", { variante, loc, registro: r })} className={`px-4 py-2 text-[13px] font-bold rounded-full transition-all active:scale-95 w-full ${esMejor && !eco ? "bg-primary text-white hover:bg-primary-container hover:shadow-lg" : "border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary hover:bg-primary/5"}`}>Ver detalle</button>
+                    </div>
                   </div>
                 </div>
               </div>

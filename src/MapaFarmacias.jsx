@@ -7,7 +7,6 @@ const C = {
 
 // Coordenadas de distritos de Lima para posicionamiento rápido
 const DISTRITO_COORDS = {
-  'MIRAFLORES':           [-18.1194, -70.2947], // fix placeholder
   'Miraflores':           [-12.1211, -77.0290],
   'San Isidro':           [-12.0971, -77.0386],
   'San Borja':            [-12.1089, -77.0024],
@@ -36,7 +35,7 @@ const DISTRITO_COORDS = {
   'Callao':               [-12.0658, -77.1328],
 };
 
-function getDistritoCoords(distrito) {
+export function getDistritoCoords(distrito) {
   if (!distrito) return [-12.0464, -77.0428];
   for (const [key, coords] of Object.entries(DISTRITO_COORDS)) {
     if (distrito.toUpperCase().includes(key.toUpperCase()) ||
