@@ -35,15 +35,21 @@ const DISTRITO_COORDS = {
   'Callao':               [-12.0658, -77.1328],
 };
 
+const _normDist = (s) => (s || "").toUpperCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
 export function getDistritoCoords(distrito) {
-  if (!distrito) return [-12.0464, -77.0428];
+  if (!distrito) return null;
+  const d = _normDist(distrito);
+  // 1) Coincidencia exacta (evita que "San Juan de Miraflores" caiga en "Miraflores").
   for (const [key, coords] of Object.entries(DISTRITO_COORDS)) {
-    if (distrito.toUpperCase().includes(key.toUpperCase()) ||
-        key.toUpperCase().includes(distrito.toUpperCase())) {
-      return coords;
-    }
+    if (_normDist(key) === d) return coords;
   }
-  return [-12.0464, -77.0428];
+  // 2) Coincidencia por contención, prefiriendo la clave más larga (la más específica).
+  let best = null, bestLen = 0;
+  for (const [key, coords] of Object.entries(DISTRITO_COORDS)) {
+    const k = _normDist(key);
+    if ((d.includes(k) || k.includes(d)) && k.length > bestLen) { best = coords; bestLen = k.length; }
+  }
+  return best; // null si es un distrito desconocido (no se filtra por distancia)
 }
 
 // Dispersar farmacias alrededor del punto central del distrito
