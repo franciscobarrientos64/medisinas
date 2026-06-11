@@ -49,7 +49,7 @@ export default function Home({ go, activePersona }) {
         <div className="relative z-10">
           <span className="font-label-caps text-label-caps bg-white/20 backdrop-blur-md px-4 py-1.5 rounded-full uppercase tracking-widest">Precios oficiales DIGEMID · MINSA</span>
           <h1 className="font-display-lg text-display-lg md:text-[56px] leading-tight font-extrabold mt-8">
-            Tu salud,<br /><span className="opacity-80">tu dinero,</span><br />tu elección.
+            Tu salud,<br /><span className="opacity-80">tu dinero,</span><br />tu decisión.
           </h1>
           <p className="font-body-md text-body-md text-white/75 max-w-sm mt-6">
             Comparamos precios en tiempo real en farmacias de todo el Perú para que pagues lo justo por tus medicinas.
