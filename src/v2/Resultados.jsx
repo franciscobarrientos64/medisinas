@@ -503,6 +503,14 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
                           </div>
                         </div>
                       )}
+                      {/* Pedir por delivery */}
+                      <div className="relative group/del inline-block">
+                        <button className={btnCls}><span className="material-symbols-outlined text-[16px]">delivery_dining</span> Delivery</button>
+                        <div className="absolute bottom-full left-0 mb-2 hidden group-hover/del:flex flex-col bg-white border border-outline-variant/30 rounded-lg shadow-xl p-2 z-20 min-w-[160px]">
+                          <a href={`https://www.rappi.com.pe/search?query=${encodeURIComponent(compraQuery)}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 p-2 hover:bg-surface-container rounded text-body-sm"><span className="w-[18px] h-[18px] rounded-md shrink-0" style={{ background: "#FF441F" }} /> Rappi</a>
+                          <a href={`https://www.pedidosya.com.pe/search?q=${encodeURIComponent(compraQuery)}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 p-2 hover:bg-surface-container rounded text-body-sm"><span className="w-[18px] h-[18px] rounded-md shrink-0" style={{ background: "#FA0050" }} /> PedidosYa</a>
+                        </div>
+                      </div>
                       <button onClick={() => compartirWhatsApp(r.nombreComercial, precio.toFixed(2), tituloBusqueda, r.distrito, r.direccion, r.telefono, null, null, null)} className={btnCls}><span className="material-symbols-outlined text-[16px]">share</span> Compartir</button>
                     </div>
                   </div>
