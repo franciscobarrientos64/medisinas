@@ -1,3 +1,5 @@
+export const config = { maxDuration: 30 };
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -26,7 +28,7 @@ export default async function handler(req, res) {
           'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
         },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(12000),
       });
 
       const text = await response.text();

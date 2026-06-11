@@ -150,6 +150,7 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
   const [maxDist, setMaxDist] = useState(15);
   const [vista, setVista] = useState("lista"); // lista | mapa
   const [coordsArr, setCoordsArr] = useState([]); // coords geocodificadas, alineadas a `resultados`
+  const [servicioError, setServicioError] = useState(false); // DIGEMID no respondió (timeout/502)
 
   const ubigeo = loc?.ubigeo ?? null;
   const dep = loc?.dep ?? 15;
@@ -175,19 +176,21 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
 
   const buscar = useCallback(async () => {
     if (!query) return;
-    setLoading(true); setBuscado(true); setResultados([]); setMaxPrecio(null);
+    setLoading(true); setBuscado(true); setResultados([]); setMaxPrecio(null); setServicioError(false);
     try {
       // Candidatos a probar: la variante exacta (desplegable/reciente) o, para texto
       // libre, varias candidatas hasta dar con una que tenga precios publicados.
       const candidatos = preVariante ? [preVariante] : (await candidatasVariantes(query)).slice(0, 5);
       if (!candidatos.length) { setVariante(null); setLoading(false); return; }
 
-      let usada = null, regs = [];
+      let usada = null, regs = [], huboError = false;
       for (const c of candidatos) {
-        const { registros } = await consultarPrecios(c.grupo, c.codGrupoFF, c.concent, ubigeo, dep, prov, 1, 100);
+        const { registros, error } = await consultarPrecios(c.grupo, c.codGrupoFF, c.concent, ubigeo, dep, prov, 1, 100);
+        if (error) huboError = true;
         if (!usada) usada = c; // recuerda la primera por si ninguna trae precios
         if (registros.length) { usada = c; regs = registros; break; }
       }
+      if (!regs.length && huboError) setServicioError(true);
 
       setVariante(usada);
       agregarAlHistorial(usada);
@@ -398,7 +401,16 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
             </div>
           )}
 
-          {!loading && buscado && lista.length === 0 && (
+          {!loading && buscado && lista.length === 0 && servicioError && (
+            <div className="flex flex-col items-center justify-center py-24 text-on-surface-variant text-center">
+              <span className="material-symbols-outlined text-5xl text-error mb-4">cloud_off</span>
+              <p className="text-body-md mb-2 font-semibold text-on-surface">El servicio oficial DIGEMID no está respondiendo</p>
+              <p className="text-body-sm mb-5 max-w-sm">Los precios vienen en vivo de DIGEMID/MINSA y ahora mismo su servidor está lento o caído. No es un problema de tu búsqueda. Intenta de nuevo en unos minutos.</p>
+              <button onClick={() => buscar()} className="px-8 py-3 bg-primary text-white font-bold rounded-full flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">refresh</span> Reintentar</button>
+            </div>
+          )}
+
+          {!loading && buscado && lista.length === 0 && !servicioError && (
             <div className="flex flex-col items-center justify-center py-24 text-on-surface-variant text-center">
               <span className="material-symbols-outlined text-5xl text-outline mb-4">search_off</span>
               <p className="text-body-md mb-4">No encontramos resultados para "{tituloBusqueda}"{geoPos || maxPrecio || tipoFiltro !== "todos" ? " con esos filtros" : ` en ${zonaTxt}`}.</p>

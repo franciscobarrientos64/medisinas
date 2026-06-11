@@ -46,9 +46,11 @@ export async function consultarPrecios(grupo, codGrupoFF, concent, ubigeo, depCo
   // El proxy ya reintenta internamente; aquí una sola llamada para no multiplicar la espera.
   const data = await callProxy('preciovista/ciudadano', { filtro });
   if (data?.codigo === '00') {
-    const result = { registros: data.data || [], cantidad: data.cantidad || 0 };
+    const result = { registros: data.data || [], cantidad: data.cantidad || 0, error: false };
     if (result.registros.length) _precioCache[cacheKey] = { data: result, ts: Date.now() };
     return result;
   }
-  return { registros: [], cantidad: 0 };
+  // Sin codigo '00': el proxy falló (timeout/502) o DIGEMID no respondió bien → no es "sin resultados".
+  const servicioCaido = !data || !!data.error;
+  return { registros: [], cantidad: 0, error: servicioCaido };
 }

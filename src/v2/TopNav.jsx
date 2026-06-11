@@ -17,7 +17,7 @@ export default function TopNav({ go, active, personas = [], activePersona, onCha
     <nav className="bg-surface/80 backdrop-blur-xl sticky top-0 z-50 border-b border-outline-variant/20 shadow-[0_8px_32px_0_rgba(63,83,196,0.06)]">
       <div className="flex justify-between items-center w-full px-margin-page py-4 gap-4">
         <div className="flex items-center gap-10 shrink-0">
-          <button onClick={() => go("home")} className="font-logo text-[26px] font-bold text-primary">Medisinas</button>
+          <button onClick={() => go("home")} className="font-logo text-[26px] font-bold text-primary">Medi<span className="text-secondary">si</span>nas</button>
           <span className="text-[10px] text-on-surface-variant/50">V.{VERSION}</span>
           <div className="hidden lg:flex items-center gap-8 font-body-md text-body-md">
             {links.map((l) => (
