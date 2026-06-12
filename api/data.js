@@ -232,11 +232,31 @@ module.exports = async function handler(req, res) {
         const { userId, medicamentoId } = req.body;
         if (!userId || !medicamentoId) return res.status(400).json({ error: "Faltan datos" });
         const hoy = new Date().toISOString().split("T")[0];
-        const { data, error } = await supabase.from("medicamentos_usuario").update({ ultima_compra: hoy }).eq("id", medicamentoId).eq("usuario_id", userId).select().single();
-        if (error) return res.status(500).json({ error: error.message });
+        const { data: med } = await supabase.from("medicamentos_usuario").select("frecuencia_dias").eq("id", medicamentoId).eq("usuario_id", userId).maybeSingle();
         let proxima = null;
-        if (data.frecuencia_dias) { const d = new Date(hoy); d.setDate(d.getDate() + data.frecuencia_dias); proxima = d.toISOString().split("T")[0]; }
+        if (med?.frecuencia_dias) { const d = new Date(hoy); d.setDate(d.getDate() + med.frecuencia_dias); proxima = d.toISOString().split("T")[0]; }
+        const { error } = await supabase.from("medicamentos_usuario").update({ ultima_compra: hoy, proxima_compra: proxima }).eq("id", medicamentoId).eq("usuario_id", userId);
+        if (error) return res.status(500).json({ error: error.message });
         return res.json({ success: true, ultima_compra: hoy, proxima_compra: proxima });
+      }
+
+      case "set-recordatorio": {
+        if (req.method !== "POST") return res.status(405).end();
+        const { userId, medicamentoId, frecuenciaDias } = req.body;
+        if (!userId || !medicamentoId) return res.status(400).json({ error: "Faltan datos" });
+        const freq = frecuenciaDias ? parseInt(frecuenciaDias, 10) : null;
+        const { data: med } = await supabase.from("medicamentos_usuario").select("ultima_compra").eq("id", medicamentoId).eq("usuario_id", userId).maybeSingle();
+        let proxima = null;
+        if (freq) {
+          const base = med?.ultima_compra ? new Date(med.ultima_compra) : new Date();
+          base.setDate(base.getDate() + freq);
+          proxima = base.toISOString().split("T")[0];
+        }
+        const { error } = await supabase.from("medicamentos_usuario")
+          .update({ frecuencia_dias: freq, proxima_compra: proxima, ultima_notificacion_recompra: null })
+          .eq("id", medicamentoId).eq("usuario_id", userId);
+        if (error) return res.status(500).json({ error: error.message });
+        return res.json({ success: true, frecuencia_dias: freq, proxima_compra: proxima });
       }
 
       // ───────── RECETAS ─────────

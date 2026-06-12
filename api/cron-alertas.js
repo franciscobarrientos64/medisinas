@@ -34,6 +34,75 @@ function buildEmail({ nombre, nombreProducto, concent, precioMinimo, precioObjet
 </table></td></tr></table></body></html>`;
 }
 
+function buildRecompraEmail({ nombre, nombreProducto, concent, dias }) {
+  const fechaStr = new Date().toLocaleDateString('es-PE', { weekday:'long', day:'numeric', month:'long' });
+  const urgente = dias <= 0;
+  const titulo = urgente ? 'Se te está acabando' : `Te quedan ${dias} día${dias === 1 ? '' : 's'}`;
+  const color = urgente ? '#DC2626' : '#C98A14';
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#F3F4F6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
+<table width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px">
+<table width="100%" style="max-width:520px;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)">
+<tr><td style="background:linear-gradient(135deg,#3c51c2,#8135c5);padding:28px 32px">
+  <div style="color:#fff;font-size:22px;font-weight:800">Medi<span style="color:#deb7ff">si</span>nas</div>
+  <div style="color:rgba(255,255,255,0.7);font-size:13px;margin-top:4px">Recordatorio de recompra</div>
+</td></tr>
+<tr><td style="padding:28px 32px">
+  <div style="font-size:15px;color:#374151;margin-bottom:20px">Hola <strong>${nombre || 'amigo'}</strong>, no te quedes sin tu medicina:</div>
+  <div style="background:#FFFBEB;border:1.5px solid ${color};border-radius:12px;padding:20px 24px;margin-bottom:20px">
+    <div style="font-size:18px;font-weight:700;color:#111827;margin-bottom:4px">💊 ${nombreProducto} ${concent || ''}</div>
+    <div style="font-size:22px;font-weight:800;color:${color};margin:8px 0">${titulo}</div>
+    <div style="font-size:13px;color:#6B7280">Te conviene comprarla pronto. Compara precios y ahorra.</div>
+  </div>
+  <div style="text-align:center;margin-bottom:24px">
+    <a href="https://medisinas.com" style="display:inline-block;background:#3c51c2;color:#fff;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:700;font-size:15px">Comparar precios ahora →</a>
+  </div>
+  <div style="font-size:12px;color:#9CA3AF;text-align:center;line-height:1.6">Recibes esto porque activaste un recordatorio en Mis Medicinas.</div>
+</td></tr>
+<tr><td style="background:#F9FAFB;padding:16px 32px;border-top:1px solid #E5E7EB">
+  <div style="font-size:11px;color:#9CA3AF;text-align:center">MediSinas · medisinas.com · ${fechaStr}</div>
+</td></tr>
+</table></td></tr></table></body></html>`;
+}
+
+async function procesarRecompras(supabase) {
+  const limite = new Date(); limite.setDate(limite.getDate() + 3);
+  const limiteStr = limite.toISOString().split("T")[0];
+  const { data: meds } = await supabase
+    .from("medicamentos_usuario")
+    .select("*, usuarios(nombre, email)")
+    .eq("activo", true)
+    .not("frecuencia_dias", "is", null)
+    .not("proxima_compra", "is", null)
+    .lte("proxima_compra", limiteStr);
+
+  let enviados = 0;
+  for (const med of (meds || [])) {
+    try {
+      const email = med.usuarios?.email;
+      if (!email) continue;
+      // Anti-spam: ya notificado en este ciclo (notificación posterior a la última compra)
+      if (med.ultima_notificacion_recompra && med.ultima_compra &&
+          new Date(med.ultima_notificacion_recompra) >= new Date(med.ultima_compra)) continue;
+      const dias = Math.ceil((new Date(med.proxima_compra) - new Date()) / 86400000);
+      const r = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${process.env.RESEND_API_KEY}` },
+        body: JSON.stringify({
+          from: "MediSinas <alertas@medisinas.com>",
+          to: [email],
+          subject: dias <= 0 ? `⏰ Se te acaba ${med.nombre_producto}` : `🔔 Te quedan ${dias} día${dias === 1 ? '' : 's'} de ${med.nombre_producto}`,
+          html: buildRecompraEmail({ nombre: med.usuarios?.nombre, nombreProducto: med.nombre_producto, concent: med.concent, dias }),
+        }),
+      });
+      if (!r.ok) continue;
+      await supabase.from("medicamentos_usuario").update({ ultima_notificacion_recompra: new Date().toISOString() }).eq("id", med.id);
+      enviados++;
+    } catch (e) { /* continuar */ }
+  }
+  return enviados;
+}
+
 module.exports = async function handler(req, res) {
   if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
     return res.status(401).json({ error: "No autorizado" });
@@ -46,7 +115,10 @@ module.exports = async function handler(req, res) {
     .eq("activa", true)
     .or(`ultima_notificacion.is.null,ultima_notificacion.lt.${hoy}T00:00:00Z`);
 
-  if (error || !alertas?.length) return res.json({ ok: true, mensaje: "Sin alertas", total: 0 });
+  if (error || !alertas?.length) {
+    const recordatorios = await procesarRecompras(supabase);
+    return res.json({ ok: true, mensaje: "Sin alertas de precio", notificadas: 0, recordatorios });
+  }
 
   let notificadas = 0;
   const errores = [];
@@ -90,5 +162,6 @@ module.exports = async function handler(req, res) {
       errores.push({ alerta_id: alerta.id, error: e.message });
     }
   }
-  return res.json({ ok: true, total_alertas: alertas.length, notificadas, errores });
+  const recordatorios = await procesarRecompras(supabase);
+  return res.json({ ok: true, total_alertas: alertas.length, notificadas, recordatorios, errores });
 };
