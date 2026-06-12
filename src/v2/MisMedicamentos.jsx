@@ -46,6 +46,10 @@ export default function MisMedicamentos({ go, activePersona }) {
     await fetch("/api/data?action=delete-medicamento", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: user.id, medicamentoId: m.id }) });
     cargar();
   };
+  const setRecordatorio = async (m, freq) => {
+    await fetch("/api/data?action=set-recordatorio", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: user.id, medicamentoId: m.id, frecuenciaDias: freq || null }) });
+    cargar();
+  };
 
   if (!user?.id) {
     return (
@@ -106,9 +110,20 @@ export default function MisMedicamentos({ go, activePersona }) {
                     <div className={`h-full rounded-full ${e.cls}`} style={{ width: `${pct}%` }} />
                   </div>
                 </div>
-                <div className="flex gap-3 mt-5">
+                <div className="flex gap-3 mt-5 flex-wrap items-center">
                   <button onClick={() => compreHoy(m)} className="px-6 py-3 bg-primary text-white font-bold rounded-full text-body-sm active:scale-95 transition-all">Compré hoy</button>
                   <button onClick={() => go("resultados", { query: m.nombre_producto })} className="px-6 py-3 border-2 border-outline-variant text-on-surface-variant font-bold rounded-full text-body-sm hover:border-primary hover:text-primary">Buscar precio</button>
+                  <label className="flex items-center gap-2 text-body-sm text-on-surface-variant ml-auto">
+                    <span className="material-symbols-outlined text-[18px] text-primary">notifications</span>
+                    <select value={m.frecuencia_dias || ""} onChange={(e) => setRecordatorio(m, e.target.value)} className="bg-surface-container-low border border-outline-variant/40 rounded-full py-2 pl-3 pr-8 text-body-sm cursor-pointer">
+                      <option value="">Sin recordatorio</option>
+                      <option value="7">Avísame cada 7 días</option>
+                      <option value="15">Avísame cada 15 días</option>
+                      <option value="30">Avísame cada 30 días</option>
+                      <option value="60">Avísame cada 60 días</option>
+                      <option value="90">Avísame cada 90 días</option>
+                    </select>
+                  </label>
                 </div>
               </div>
             );
