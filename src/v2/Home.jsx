@@ -52,7 +52,7 @@ export default function Home({ go, activePersona }) {
             Tu salud,<br /><span className="opacity-80">tu dinero,</span><br />tu decisión.
           </h1>
           <p className="font-body-md text-body-md text-white/75 max-w-sm mt-6">
-            Comparamos precios en tiempo real en farmacias de todo el Perú para que pagues lo justo por tus medicinas.
+            Comparamos los precios oficiales de DIGEMID en las farmacias de Lima y Callao, actualizados cada día, para que pagues lo justo por tus medicinas.
           </p>
         </div>
         <div className="relative z-10 mt-10 grid grid-cols-2 gap-4">

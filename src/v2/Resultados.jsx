@@ -322,7 +322,9 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
               {loading
                 ? "Buscando precios oficiales DIGEMID…"
                 : lista.length
-                ? `${totalZona > lista.length ? `Las ${lista.length} farmacias más baratas de las ${totalZona} que lo venden` : `Encontramos ${lista.length} farmacias`} en tu zona.${minP ? ` Los precios van de ${fmt(minP)} a ${fmt(maxP)}.` : ""}`
+                ? totalZona > lista.length
+                  ? `Las ${lista.length} farmacias más baratas de las ${totalZona} que lo venden en tu zona.${minP ? ` Ahí el precio va de ${fmt(minP)} a ${fmt(maxP)}.` : ""}`
+                  : `Encontramos ${lista.length} farmacias en tu zona.${minP ? ` Los precios van de ${fmt(minP)} a ${fmt(maxP)}.` : ""}`
                 : "No encontramos resultados."}
             </p>
             {copiaAl && (
