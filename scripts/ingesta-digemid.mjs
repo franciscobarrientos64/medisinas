@@ -47,6 +47,7 @@ const ZONAS = [
 
 const TOPE_POR_DISTRITO = 10;
 const PAUSA_MS = 400; // el servicio ya tarda ~1 s por llamada; esto lo deja en ~2 por segundo.
+const PAUSA_AUTOCOMPLETE_MS = 2500; // el autocomplete corta con 429 mucho antes que los precios.
 const VARIANTES_POR_NOMBRE = 4;
 const LOTE = 500;
 
@@ -67,6 +68,10 @@ const opcion = (nombre, porDefecto = 0) => {
 const SECO = args.includes('--seco');
 const LIMITE = opcion('limite');
 const DESDE = opcion('desde');
+// Vuelve a preguntarle a DIGEMID las variantes de TODOS los nombres, no solo las de los que
+// aún no tienen ninguna. Conviene correrlo de vez en cuando (una vez por semana basta) para
+// recoger presentaciones nuevas.
+const RECATALOGAR = args.includes('--recatalogar');
 
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...partes) => {
@@ -97,7 +102,7 @@ function entorno() {
 let llamadas = 0;
 let errores = 0;
 
-async function digemid(endpoint, filtro, intentos = 3) {
+async function digemid(endpoint, filtro, intentos = 4) {
   for (let i = 0; i < intentos; i++) {
     try {
       llamadas++;
@@ -107,6 +112,11 @@ async function digemid(endpoint, filtro, intentos = 3) {
         body: JSON.stringify({ filtro }),
         signal: AbortSignal.timeout(90_000),
       });
+      // El 429 no es un fallo pasajero cualquiera: DIGEMID nos cortó por ir muy rápido y
+      // reintentar a los 3 segundos solo alarga el castigo. Hay que esperar de verdad.
+      // En la primera corrida completa esto costó 130 de 280 medicinas: el autocomplete
+      // devolvía 429 y la medicina quedaba registrada como "sin variantes".
+      if (res.status === 429) throw Object.assign(new Error('429 (límite de tasa)'), { esperar: 45_000 * (i + 1) });
       if (!res.ok) throw new Error(`status ${res.status}`);
       const data = await res.json();
       if (data?.codigo !== '00') throw new Error(`codigo ${data?.codigo}`);
@@ -117,7 +127,7 @@ async function digemid(endpoint, filtro, intentos = 3) {
         log('  ⚠️', endpoint, String(e.message ?? e));
         return null;
       }
-      await dormir(1500 * (i + 1));
+      await dormir(e.esperar ?? 1500 * (i + 1));
     }
   }
   return null;
@@ -155,7 +165,7 @@ async function main() {
     const { data } = await sb.from('ingesta_log').insert({ estado: 'corriendo' }).select('id').single();
     corridaId = data?.id;
   }
-  const cuenta = { variantes: 0, farmaciasNuevas: 0, filas: 0, resumen: 0, vistas: 0 };
+  const cuenta = { variantes: 0, farmaciasNuevas: 0, filas: 0, resumen: 0, vistas: 0, sinVariantes: 0 };
 
   try {
     // Nombres a copiar: las medicinas semilla de la tabla (las filas sin variante DIGEMID).
@@ -163,6 +173,23 @@ async function main() {
     let nombres = [...new Set(semillas.map((r) => r.nombre).filter(Boolean))];
     if (DESDE) nombres = nombres.slice(DESDE);
     if (LIMITE) nombres = nombres.slice(0, LIMITE);
+
+    // Catálogo ya conocido: nombre semilla → variantes, con la forma que devuelve DIGEMID.
+    const catalogo = new Map();
+    if (!RECATALOGAR) {
+      for (const m of await traerTodo(sb, 'medicamentos', 'nombre, concentracion, nombre_forma, grupo, cod_grupo_ff, buscado_como', (q) =>
+        q.not('buscado_como', 'is', null),
+      )) {
+        if (!catalogo.has(m.buscado_como)) catalogo.set(m.buscado_como, []);
+        catalogo.get(m.buscado_como).push({
+          grupo: m.grupo,
+          codGrupoFF: m.cod_grupo_ff,
+          concent: m.concentracion ?? '',
+          nombreProducto: m.nombre,
+          nombreFormaFarmaceutica: m.nombre_forma,
+        });
+      }
+    }
 
     // Mapa de farmacias conocidas (código → id) y las que ya se refrescaron en esta corrida.
     const farmacias = new Map();
@@ -173,35 +200,46 @@ async function main() {
       farmacias.set(f.codigo_establecimiento, f.id);
     }
     log(
-      `Copia DIGEMID · ${nombres.length} medicinas · ${ZONAS.map((z) => z.nombre).join(' + ')} · ` +
-        `${farmacias.size} farmacias conocidas · tope ${TOPE_POR_DISTRITO} por distrito${SECO ? ' · MODO SECO' : ''}`,
+      `Copia DIGEMID · ${nombres.length} medicinas (${catalogo.size} con catálogo ya conocido) · ` +
+        `${ZONAS.map((z) => z.nombre).join(' + ')} · ${farmacias.size} farmacias conocidas · ` +
+        `tope ${TOPE_POR_DISTRITO} por distrito${RECATALOGAR ? ' · RECATALOGANDO' : ''}${SECO ? ' · MODO SECO' : ''}`,
     );
 
     for (const [i, nombre] of nombres.entries()) {
-      const sugerencias = (await digemid('producto/autocompleteciudadano', {
-        nombreProducto: nombre,
-        pagina: 1,
-        tamanio: 20,
-        tokenGoogle: '',
-      })) ?? [];
-      await dormir(PAUSA_MS);
+      // El catálogo de variantes se guarda y se reusa: el autocomplete de DIGEMID limita por
+      // tasa mucho antes que el de precios, y las presentaciones de una medicina cambian muy
+      // de vez en cuando. Solo se pregunta por los nombres que aún no tienen ninguna.
+      const conocidas = catalogo.get(nombre) ?? [];
+      let variantes;
+      if (conocidas.length && !RECATALOGAR) {
+        variantes = conocidas;
+      } else {
+        const sugerencias = (await digemid('producto/autocompleteciudadano', {
+          nombreProducto: nombre,
+          pagina: 1,
+          tamanio: 20,
+          tokenGoogle: '',
+        })) ?? [];
+        await dormir(PAUSA_AUTOCOMPLETE_MS);
 
-      const vistas = new Set();
-      const candidatas = [];
-      for (const v of sugerencias) {
-        const k = `${v.grupo}|${v.codGrupoFF}|${v.concent}`;
-        if (v.grupo && !vistas.has(k)) {
-          vistas.add(k);
-          candidatas.push(v);
+        const vistas = new Set();
+        const candidatas = [];
+        for (const v of sugerencias) {
+          const k = `${v.grupo}|${v.codGrupoFF}|${v.concent}`;
+          if (v.grupo && !vistas.has(k)) {
+            vistas.add(k);
+            candidatas.push(v);
+          }
         }
+        // Orden estable: primero las formas que la gente compra, y dentro de cada una el
+        // orden en que las dio DIGEMID.
+        variantes = candidatas
+          .map((v, orden) => ({ v, orden }))
+          .sort((a, b) => rangoForma(a.v) - rangoForma(b.v) || a.orden - b.orden)
+          .slice(0, VARIANTES_POR_NOMBRE)
+          .map((x) => x.v);
+        if (!variantes.length) cuenta.sinVariantes++;
       }
-      // Orden estable: primero las formas que la gente compra, y dentro de cada una el orden
-      // en que las dio DIGEMID.
-      const variantes = candidatas
-        .map((v, orden) => ({ v, orden }))
-        .sort((a, b) => rangoForma(a.v) - rangoForma(b.v) || a.orden - b.orden)
-        .slice(0, VARIANTES_POR_NOMBRE)
-        .map((x) => x.v);
       log(`(${DESDE + i + 1}/${DESDE + nombres.length}) ${nombre} · ${variantes.length} variantes`);
 
       for (const v of variantes) {
@@ -219,6 +257,7 @@ async function main() {
                 forma: v.nombreFormaFarmaceutica ?? null,
                 nombre_forma: v.nombreFormaFarmaceutica ?? null,
                 codigo_digemid: Number(v.grupo) || null,
+                buscado_como: nombre,
                 actualizado_at: new Date().toISOString(),
               },
               { onConflict: 'grupo,cod_grupo_ff,concentracion' },
@@ -403,7 +442,7 @@ async function main() {
     log(
       `Listo en ${minutos} min · ${cuenta.variantes} variantes · ${cuenta.farmaciasNuevas} farmacias nuevas · ` +
         `${cuenta.filas} precios guardados de ${cuenta.vistas} vistos · ${cuenta.resumen} resúmenes · ` +
-        `${llamadas} llamadas · ${errores} errores`,
+        `${llamadas} llamadas · ${errores} errores · ${cuenta.sinVariantes} nombres sin variantes`,
     );
     if (corridaId) {
       await sb
