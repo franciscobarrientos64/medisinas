@@ -45,12 +45,19 @@ Detalles del servicio de DIGEMID, medidos el 23/09/2026 y que cuestan horas de r
   con el prefijo del `ubicodigo` de cada fila.
 - `concent` es obligatorio y con el formato exacto del autocomplete (`500mg`, no `500 mg`).
 - Sin las cabeceras `Origin`/`Referer` de `opm-digemid.minsa.gob.pe` rechaza la llamada.
-- **`producto/autocompleteciudadano` limita por tasa (429) mucho antes que `preciovista`**, y
-  el castigo dura decenas de minutos. En la primera corrida completa esto costó 130 de las 280
-  medicinas: devolvía 429 y quedaban registradas como "sin variantes". Por eso el catálogo de
-  variantes se guarda en `medicamentos.buscado_como` y se reusa; cada corrida solo pregunta por
-  los nombres que todavía no tienen ninguna, y `--recatalogar` fuerza preguntar por todos
-  (conviene una vez por semana, para recoger presentaciones nuevas).
+- **`producto/autocompleteciudadano` limita por tasa (Cloudflare 1015 / HTTP 429) mucho antes
+  que `preciovista`**, que sigue respondiendo 200 mientras el otro está cortado. El castigo dura
+  más de media hora y **saltó yendo a ~1 consulta cada 6 segundos**, o sea que hay un techo por
+  hora: ir más lento dentro de una corrida no alcanza. En la primera corrida completa esto costó
+  130 de las 280 medicinas, que quedaron registradas como "sin variantes" cuando en realidad sí
+  existen.
+
+  Por eso el catálogo de variantes **se guarda** (`medicamentos.buscado_como`) y **se reusa**:
+  una corrida normal no consulta el autocomplete ni una vez. Los nombres nuevos se catalogan de
+  a pocos, `--tope-catalogo` por corrida (40 por defecto, con 15 s entre consultas), y el resto
+  espera al día siguiente; el log dice cuántos quedaron pendientes. Así el catálogo se completa
+  solo en pocos días sin volver a chocar con el límite. `--recatalogar` fuerza preguntar por
+  todos (conviene una vez por semana, para recoger presentaciones nuevas).
 
 ## Stack
 - **Frontend:** React CRA (Create React App) — NO es Vite

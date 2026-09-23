@@ -74,10 +74,14 @@ const DESDE = opcion('desde');
 // aún no tienen ninguna. Conviene correrlo de vez en cuando (una vez por semana basta) para
 // recoger presentaciones nuevas.
 const RECATALOGAR = args.includes('--recatalogar');
-// El autocomplete corta con 429 (Cloudflare 1015) mucho antes que los precios, y el castigo
-// dura más de media hora. Se puede subir con --pausa-autocomplete para armar el catálogo
-// desde cero sin que nos corten.
-const PAUSA_AUTOCOMPLETE = opcion('pausa-autocomplete') || 2500;
+// El autocomplete corta con 429 (Cloudflare 1015) y el castigo dura más de media hora. En la
+// primera corrida completa saltó yendo a ~1 consulta cada 6 segundos, así que no es cuestión
+// de ir más lento dentro de una corrida: hay un techo por hora. Por eso el catálogo se arma
+// de a pocos, repartido en varios días: cada corrida pregunta como mucho por TOPE_CATALOGO
+// nombres nuevos y los demás esperan a mañana. Una vez armado, las corridas no consultan el
+// autocomplete en absoluto.
+const PAUSA_AUTOCOMPLETE = opcion('pausa-autocomplete') || 15_000;
+const TOPE_CATALOGO = opcion('tope-catalogo') || 40;
 
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...partes) => {
@@ -171,7 +175,8 @@ async function main() {
     const { data } = await sb.from('ingesta_log').insert({ estado: 'corriendo' }).select('id').single();
     corridaId = data?.id;
   }
-  const cuenta = { variantes: 0, farmaciasNuevas: 0, filas: 0, resumen: 0, vistas: 0, sinVariantes: 0 };
+  const cuenta = { variantes: 0, farmaciasNuevas: 0, filas: 0, resumen: 0, vistas: 0, sinVariantes: 0, aplazados: 0 };
+  let consultasCatalogo = 0;
 
   try {
     // Nombres a copiar: las medicinas semilla de la tabla (las filas sin variante DIGEMID).
@@ -219,7 +224,12 @@ async function main() {
       let variantes;
       if (conocidas.length && !RECATALOGAR) {
         variantes = conocidas;
+      } else if (consultasCatalogo >= TOPE_CATALOGO) {
+        // Se acabó el cupo de hoy: este nombre se cataloga en la próxima corrida.
+        cuenta.aplazados++;
+        continue;
       } else {
+        consultasCatalogo++;
         const sugerencias = (await digemid('producto/autocompleteciudadano', {
           nombreProducto: nombre,
           pagina: 1,
@@ -448,7 +458,8 @@ async function main() {
     log(
       `Listo en ${minutos} min · ${cuenta.variantes} variantes · ${cuenta.farmaciasNuevas} farmacias nuevas · ` +
         `${cuenta.filas} precios guardados de ${cuenta.vistas} vistos · ${cuenta.resumen} resúmenes · ` +
-        `${llamadas} llamadas · ${errores} errores · ${cuenta.sinVariantes} nombres sin variantes`,
+        `${llamadas} llamadas · ${errores} errores · ${cuenta.sinVariantes} sin variantes` +
+        (cuenta.aplazados ? ` · ${cuenta.aplazados} nombres quedan para la próxima corrida` : ''),
     );
     if (corridaId) {
       await sb
