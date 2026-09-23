@@ -45,6 +45,12 @@ Detalles del servicio de DIGEMID, medidos el 23/09/2026 y que cuestan horas de r
   con el prefijo del `ubicodigo` de cada fila.
 - `concent` es obligatorio y con el formato exacto del autocomplete (`500mg`, no `500 mg`).
 - Sin las cabeceras `Origin`/`Referer` de `opm-digemid.minsa.gob.pe` rechaza la llamada.
+- **`producto/autocompleteciudadano` limita por tasa (429) mucho antes que `preciovista`**, y
+  el castigo dura decenas de minutos. En la primera corrida completa esto costó 130 de las 280
+  medicinas: devolvía 429 y quedaban registradas como "sin variantes". Por eso el catálogo de
+  variantes se guarda en `medicamentos.buscado_como` y se reusa; cada corrida solo pregunta por
+  los nombres que todavía no tienen ninguna, y `--recatalogar` fuerza preguntar por todos
+  (conviene una vez por semana, para recoger presentaciones nuevas).
 
 ## Stack
 - **Frontend:** React CRA (Create React App) — NO es Vite
