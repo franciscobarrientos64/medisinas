@@ -164,8 +164,9 @@ async function main() {
     if (DESDE) nombres = nombres.slice(DESDE);
     if (LIMITE) nombres = nombres.slice(0, LIMITE);
 
-    // Mapa de farmacias ya conocidas: evita reinsertar las 7,000 que ya están.
+    // Mapa de farmacias conocidas (código → id) y las que ya se refrescaron en esta corrida.
     const farmacias = new Map();
+    const refrescadas = new Set();
     for (const f of await traerTodo(sb, 'farmacias', 'id, codigo_establecimiento', (q) =>
       q.not('codigo_establecimiento', 'is', null),
     )) {
@@ -299,8 +300,12 @@ async function main() {
           continue;
         }
 
-        // 1) Farmacias que aún no conocemos.
-        const nuevas = [...new Map(aGuardar.filter((f) => !farmacias.has(f.codEstab)).map((f) => [f.codEstab, f])).values()];
+        // 1) Farmacias. Se refresca cada una una sola vez por corrida, aunque ya estuviera en
+        //    la tabla: las 7,000 que venían de antes no tenían ubigeo ni `setcodigo`, y sin
+        //    `setcodigo` la interfaz no sabe si una farmacia es pública ni si abre 24 horas.
+        const nuevas = [
+          ...new Map(aGuardar.filter((f) => !refrescadas.has(f.codEstab)).map((f) => [f.codEstab, f])).values(),
+        ];
         for (let j = 0; j < nuevas.length; j += LOTE) {
           const { data, error } = await sb
             .from('farmacias')
@@ -324,8 +329,11 @@ async function main() {
             errores++;
             log('  ⚠️ farmacias', error.message);
           } else {
-            for (const f of data ?? []) farmacias.set(f.codigo_establecimiento, f.id);
-            cuenta.farmaciasNuevas += data?.length ?? 0;
+            for (const f of data ?? []) {
+              if (!farmacias.has(f.codigo_establecimiento)) cuenta.farmaciasNuevas++;
+              farmacias.set(f.codigo_establecimiento, f.id);
+              refrescadas.add(f.codigo_establecimiento);
+            }
           }
         }
 
