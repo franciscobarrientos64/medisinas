@@ -19,6 +19,9 @@
  *   node scripts/ingesta-digemid.mjs --limite 10     # solo 10 medicinas, para probar
  *   node scripts/ingesta-digemid.mjs --desde 120     # retomar desde la medicina 120
  *   node scripts/ingesta-digemid.mjs --seco          # no escribe nada, solo mide
+ *   node scripts/ingesta-digemid.mjs --recatalogar --pausa-autocomplete 15000
+ *                                                    # rearma el catálogo de variantes despacio,
+ *                                                    # sin que Cloudflare nos corte (ver abajo)
  *
  * Configuración en ~/medisinas/.env.ingesta (no se versiona):
  *   SUPABASE_URL=https://jmkvphayyhwzootlybde.supabase.co
@@ -47,7 +50,6 @@ const ZONAS = [
 
 const TOPE_POR_DISTRITO = 10;
 const PAUSA_MS = 400; // el servicio ya tarda ~1 s por llamada; esto lo deja en ~2 por segundo.
-const PAUSA_AUTOCOMPLETE_MS = 2500; // el autocomplete corta con 429 mucho antes que los precios.
 const VARIANTES_POR_NOMBRE = 4;
 const LOTE = 500;
 
@@ -72,6 +74,10 @@ const DESDE = opcion('desde');
 // aún no tienen ninguna. Conviene correrlo de vez en cuando (una vez por semana basta) para
 // recoger presentaciones nuevas.
 const RECATALOGAR = args.includes('--recatalogar');
+// El autocomplete corta con 429 (Cloudflare 1015) mucho antes que los precios, y el castigo
+// dura más de media hora. Se puede subir con --pausa-autocomplete para armar el catálogo
+// desde cero sin que nos corten.
+const PAUSA_AUTOCOMPLETE = opcion('pausa-autocomplete') || 2500;
 
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
 const log = (...partes) => {
@@ -220,7 +226,7 @@ async function main() {
           tamanio: 20,
           tokenGoogle: '',
         })) ?? [];
-        await dormir(PAUSA_AUTOCOMPLETE_MS);
+        await dormir(PAUSA_AUTOCOMPLETE);
 
         const vistas = new Set();
         const candidatas = [];
