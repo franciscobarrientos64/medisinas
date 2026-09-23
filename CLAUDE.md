@@ -58,6 +58,10 @@ Detalles del servicio de DIGEMID, medidos el 23/09/2026 y que cuestan horas de r
   espera al día siguiente; el log dice cuántos quedaron pendientes. Así el catálogo se completa
   solo en pocos días sin volver a chocar con el límite. `--recatalogar` fuerza preguntar por
   todos (conviene una vez por semana, para recoger presentaciones nuevas).
+- **Nunca correr dos copias a la vez.** `preciovista` aguanta una corrida sola a ~2 llamadas por
+  segundo durante media hora, pero con dos en paralelo empezó a devolver 429 también él. El
+  script se protege con un candado (`~/Library/Caches/medisinas-ingesta.pid`) y se sale solo si
+  ya hay otra corriendo. Para probar, usar `--limite`.
 
 ## Stack
 - **Frontend:** React CRA (Create React App) — NO es Vite

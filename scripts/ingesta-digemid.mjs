@@ -27,7 +27,7 @@
  *   SUPABASE_URL=https://jmkvphayyhwzootlybde.supabase.co
  *   SUPABASE_SERVICE_ROLE_KEY=...
  */
-import { readFileSync, appendFileSync } from 'node:fs';
+import { readFileSync, appendFileSync, writeFileSync, unlinkSync } from 'node:fs';
 import { createClient } from '@supabase/supabase-js';
 
 const DIGEMID = 'https://ms-opm.minsa.gob.pe/msopmcovid';
@@ -49,7 +49,11 @@ const ZONAS = [
 ];
 
 const TOPE_POR_DISTRITO = 10;
-const PAUSA_MS = 400; // el servicio ya tarda ~1 s por llamada; esto lo deja en ~2 por segundo.
+// Una corrida sola a ~2 llamadas por segundo aguantó 28 minutos sin que la cortaran, pero el
+// margen es estrecho: dos corridas a la vez bastaron para que `preciovista` también empezara a
+// devolver 429. A 700 ms la corrida tarda ~40 min y deja aire de sobra. **Nunca correr dos a
+// la vez**: el trabajo de launchd es uno solo, y las pruebas conviene hacerlas con --limite.
+const PAUSA_MS = 700;
 const VARIANTES_POR_NOMBRE = 4;
 const LOTE = 500;
 
@@ -109,6 +113,38 @@ function entorno() {
   return env;
 }
 
+// Dos corridas a la vez bastaron para que DIGEMID empezara a cortar también el endpoint de
+// precios (23/09/2026): duplican las llamadas contra un servicio que ya va al límite. El
+// candado evita que una corrida manual se cruce con la de launchd.
+const CANDADO = `${process.env.HOME}/Library/Caches/medisinas-ingesta.pid`;
+
+function tomarCandado() {
+  try {
+    const dueño = Number(readFileSync(CANDADO, 'utf8').trim());
+    // `process.kill(pid, 0)` no mata: solo pregunta si ese proceso sigue vivo.
+    if (dueño && dueño !== process.pid) {
+      try {
+        process.kill(dueño, 0);
+        return dueño; // hay otra corrida en marcha
+      } catch {
+        /* el candado quedó de una corrida que ya murió; se puede tomar */
+      }
+    }
+  } catch {
+    /* no había candado */
+  }
+  writeFileSync(CANDADO, String(process.pid));
+  return null;
+}
+
+const soltarCandado = () => {
+  try {
+    unlinkSync(CANDADO);
+  } catch {
+    /* si ya no está, mejor */
+  }
+};
+
 let llamadas = 0;
 let errores = 0;
 
@@ -167,6 +203,13 @@ async function main() {
     );
     process.exit(1);
   }
+  const otra = tomarCandado();
+  if (otra) {
+    log(`Ya hay una copia corriendo (proceso ${otra}). No se lanza otra: duplicar las llamadas hace que DIGEMID nos corte.`);
+    process.exit(0);
+  }
+  for (const señal of ['exit', 'SIGINT', 'SIGTERM']) process.on(señal, soltarCandado);
+
   const sb = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
   const inicio = new Date().toISOString();
