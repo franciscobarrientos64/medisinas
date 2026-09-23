@@ -34,6 +34,9 @@ export default function Detalle({ params = {}, go, activePersona }) {
   const [variante, setVariante] = useState(vIni || null);
   const [concentraciones, setConcentraciones] = useState([]);
   const [registros, setRegistros] = useState([]);
+  // De la copia diaria: cuántas farmacias lo venden de verdad en la zona y entre qué precios.
+  // `registros` solo trae las más baratas de cada distrito, así que contarlas engañaría.
+  const [zona, setZona] = useState({ cantidad: 0, precioMin: null, precioMax: null });
   const [loading, setLoading] = useState(false);
   const [historial, setHistorial] = useState([]);
   const [msg, setMsg] = useState("");
@@ -55,9 +58,10 @@ export default function Detalle({ params = {}, go, activePersona }) {
   const cargarPrecios = useCallback(async (vari) => {
     if (!vari) return;
     setLoading(true);
-    const { registros: regs } = await consultarPrecios(vari.grupo, vari.codGrupoFF, vari.concent, ubigeo, dep, prov, 1, 60);
+    const { registros: regs, cantidad, precioMin, precioMax } = await consultarPrecios(vari.grupo, vari.codGrupoFF, vari.concent, ubigeo, dep, prov, 1, 60);
     regs.sort((a, b) => (precioDe(a) || 1e9) - (precioDe(b) || 1e9));
     setRegistros(regs);
+    setZona({ cantidad: cantidad || regs.length, precioMin, precioMax });
     setLoading(false);
   }, [dep, prov, ubigeo]);
 
@@ -74,10 +78,10 @@ export default function Detalle({ params = {}, go, activePersona }) {
 
   const { minP, maxP, ahorro } = useMemo(() => {
     const precios = registros.map(precioDe).filter((p) => p > 0);
-    const mn = precios.length ? Math.min(...precios) : null;
-    const mx = precios.length ? Math.max(...precios) : null;
+    const mn = zona.precioMin ?? (precios.length ? Math.min(...precios) : null);
+    const mx = zona.precioMax ?? (precios.length ? Math.max(...precios) : null);
     return { minP: mn, maxP: mx, ahorro: mn && mx ? mx - mn : 0 };
-  }, [registros]);
+  }, [registros, zona]);
 
   const guardarMed = async () => {
     const user = getLocalUser();
@@ -145,7 +149,7 @@ export default function Detalle({ params = {}, go, activePersona }) {
               <div><span className="block text-label-caps text-on-surface-variant uppercase mb-1">Más caro</span><span className="text-[28px] font-bold text-on-surface-variant leading-none">{maxP ? fmt(maxP) : "—"}</span></div>
               <div><span className="block text-label-caps text-on-surface-variant uppercase mb-1">Ahorras</span><span className="text-[28px] font-bold text-secondary leading-none">{ahorro ? fmt(ahorro) : "—"}</span></div>
             </div>
-            <p className="text-body-sm text-on-surface-variant text-center mt-3">Comparado en {registros.length} farmacias de {zonaTxt}.</p>
+            <p className="text-body-sm text-on-surface-variant text-center mt-3">Comparado en {zona.cantidad || registros.length} farmacias de {zonaTxt}.</p>
           </div>
 
           <div className="flex flex-col gap-3">

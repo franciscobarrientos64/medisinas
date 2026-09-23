@@ -7,6 +7,45 @@ Comparador de precios de medicamentos en Perú usando datos oficiales DIGEMID/MI
 - **Vercel proyecto:** farmacompara-v2
 - **Supabase:** jmkvphayyhwzootlybde (cuenta: franciscobarrientos64@gmail.com)
 
+## De dónde salen los precios (leer antes de tocar búsqueda)
+
+**DIGEMID no se puede consultar en vivo desde producción.** Está detrás de Cloudflare y bloquea
+por ASN los rangos de Vercel y de Supabase: responde `1005 Access denied`. Desde una conexión
+peruana doméstica responde normal. Por eso, desde el 23/09/2026:
+
+- **`scripts/ingesta-digemid.mjs`** corre en la Mac todos los días a las **6:00**
+  (`~/Library/LaunchAgents/com.medisinas.ingesta.plist`) y deja los precios en Supabase.
+  Registro en `~/Library/Logs/medisinas-ingesta.log` y una fila por corrida en `ingesta_log`.
+  Configuración en `.env.ingesta` (no se versiona; ver `.env.ingesta.example`).
+- **`src/digemidApi.js`** lee esa copia. Mantiene las firmas y los nombres de campo de DIGEMID
+  (`codEstab`, `nombreComercial`, `precio1/2/3`, `catCodigo`…) para que la interfaz no cambie.
+- **`api/digemid.js`** sigue en el repo pero **no lo llama nadie**: quedó como puente por si
+  algún día levantan el bloqueo.
+
+**Qué se copia y qué no.** Un solo producto puede tener 26,000 filas de precio en Lima; copiarlo
+todo serían ~7 millones de filas y no entra en el plan gratuito. Así que de cada distrito se
+guardan las **10 farmacias más baratas** de cada variante, y en **`precios_resumen`** queda el
+conteo y los precios mínimo/máximo **reales** de ese distrito. Por eso `consultarPrecios`
+devuelve `cantidad` (cuántas lo venden de verdad) además de `registros` (las que mostramos):
+nunca uses `registros.length` para decir "comparado en N farmacias".
+
+**Cobertura: Lima y Callao.** Fuera de ahí no hay datos y la interfaz lo dice explícitamente
+(`sinCobertura`), en vez de mostrar "sin resultados". Para sumar regiones, agrega la zona a
+`ZONAS` en el script.
+
+**Qué medicinas se copian.** Las que están en `medicamentos` sin `grupo` (las ~280 filas
+semilla) son la lista de nombres a consultar; de cada una se toman las 4 primeras variantes,
+ordenadas por forma farmacéutica (tableta primero). **Para cubrir una medicina nueva, basta con
+insertar su nombre en `medicamentos`**; la siguiente corrida la baja sola. Ojo: el autocomplete
+de la web solo sugiere lo que está copiado.
+
+Detalles del servicio de DIGEMID, medidos el 23/09/2026 y que cuestan horas de redescubrir:
+- `tamanio` se ignora: devuelve todos los resultados en una sola llamada, no hay que paginar.
+- `codigoProvincia` **no filtra** (devuelve 0 filas). Hay que pedir por departamento y recortar
+  con el prefijo del `ubicodigo` de cada fila.
+- `concent` es obligatorio y con el formato exacto del autocomplete (`500mg`, no `500 mg`).
+- Sin las cabeceras `Origin`/`Referer` de `opm-digemid.minsa.gob.pe` rechaza la llamada.
+
 ## Stack
 - **Frontend:** React CRA (Create React App) — NO es Vite
 - **Build output:** `/build` (NO `/dist`)
@@ -116,6 +155,17 @@ historial_precios   — nombre_producto, concent, grupo, cod_grupo_ff, distrito,
 pharmacy_hours      — nombre_comercial, distrito, facebook_page_id, hours,
                       is_24h, abierto_ahora, hora_apertura, hora_cierre, last_updated
 geocoding_cache     — direccion, distrito, lat, lon (caché Nominatim → Supabase)
+medicamentos        — una fila por variante DIGEMID: nombre, sustancia, concentracion, forma,
+                      grupo + cod_grupo_ff + concentracion (único). Las filas con grupo NULL
+                      son la lista de nombres semilla que la copia diaria va a consultar
+farmacias           — codigo_establecimiento (único, = codEstab de DIGEMID), nombre, direccion,
+                      telefono, distrito, ubigeo, setcodigo
+precios             — medicamento_id + farmacia_id (único), precio1/2/3, ubigeo, distrito,
+                      cat_codigo (genérico = 04/06), fracciones, producto (marca comercial).
+                      Solo las 10 más baratas de cada distrito
+precios_resumen     — medicamento_id + ubigeo (único): n_farmacias y precio_min/max/promedio
+                      REALES del distrito, sin el tope de 10
+ingesta_log         — una fila por corrida de la copia: estado, conteos, llamadas, errores
 work_sessions       — project_id, session_date, horas, fase, descripcion (Alfred)
 project_costs       — project_id, phase_number, categoria, item, costo_usd (Alfred)
 ```

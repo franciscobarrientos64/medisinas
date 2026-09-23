@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from "react";
-import { buscarVariantes, consultarPrecios } from "../digemidApi";
+import { buscarVariantes, consultarPrecios, ultimaCopia } from "../digemidApi";
 import { getEstadoFarmacia } from "../horarios";
 import { getLocalUser } from "../UserAuth";
 import { compartirWhatsApp, calcularDistancia, agregarAlHistorial } from "../utils";
@@ -150,7 +150,14 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
   const [maxDist, setMaxDist] = useState(15);
   const [vista, setVista] = useState("lista"); // lista | mapa
   const [coordsArr, setCoordsArr] = useState([]); // coords geocodificadas, alineadas a `resultados`
-  const [servicioError, setServicioError] = useState(false); // DIGEMID no respondió (timeout/502)
+  const [servicioError, setServicioError] = useState(false); // la copia en Supabase no respondió
+  const [sinCobertura, setSinCobertura] = useState(false); // región fuera de Lima y Callao
+  // Total real de farmacias que lo venden en la zona. La copia guarda solo las más baratas de
+  // cada distrito, así que contar las filas mostradas daría un número mucho menor que el real.
+  const [totalZona, setTotalZona] = useState(0);
+  const [copiaAl, setCopiaAl] = useState(null);
+
+  useEffect(() => { ultimaCopia().then(setCopiaAl).catch(() => {}); }, []);
   const [guardado, setGuardado] = useState(""); // feedback de "Guardar medicina"
 
   const ubigeo = loc?.ubigeo ?? null;
@@ -177,21 +184,24 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
 
   const buscar = useCallback(async () => {
     if (!query) return;
-    setLoading(true); setBuscado(true); setResultados([]); setMaxPrecio(null); setServicioError(false);
+    setLoading(true); setBuscado(true); setResultados([]); setMaxPrecio(null); setServicioError(false); setSinCobertura(false); setTotalZona(0);
     try {
       // Candidatos a probar: la variante exacta (desplegable/reciente) o, para texto
       // libre, varias candidatas hasta dar con una que tenga precios publicados.
       const candidatos = preVariante ? [preVariante] : (await candidatasVariantes(query)).slice(0, 5);
       if (!candidatos.length) { setVariante(null); setLoading(false); return; }
 
-      let usada = null, regs = [], huboError = false;
+      let usada = null, regs = [], huboError = false, fueraDeZona = false, total = 0;
       for (const c of candidatos) {
-        const { registros, error } = await consultarPrecios(c.grupo, c.codGrupoFF, c.concent, ubigeo, dep, prov, 1, 100);
-        if (error) huboError = true;
+        const res = await consultarPrecios(c.grupo, c.codGrupoFF, c.concent, ubigeo, dep, prov, 1, 100);
+        if (res.error) huboError = true;
+        if (res.sinCobertura) fueraDeZona = true;
         if (!usada) usada = c; // recuerda la primera por si ninguna trae precios
-        if (registros.length) { usada = c; regs = registros; break; }
+        if (res.registros.length) { usada = c; regs = res.registros; total = res.cantidad; break; }
       }
       if (!regs.length && huboError) setServicioError(true);
+      if (!regs.length && fueraDeZona) setSinCobertura(true);
+      setTotalZona(total);
 
       setVariante(usada);
       agregarAlHistorial(usada);
@@ -310,11 +320,17 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
             <h1 className="font-display-lg text-display-lg mb-2">{variante ? `${variante.nombreProducto}${variante.concent ? " " + variante.concent : ""}` : (query || "Buscar")}</h1>
             <p className="text-white/80 font-body-md max-w-md">
               {loading
-                ? "Consultando precios oficiales DIGEMID…"
+                ? "Buscando precios oficiales DIGEMID…"
                 : lista.length
-                ? `Encontramos ${lista.length} resultados en farmacias verificadas en tu zona.${minP ? ` Los precios van de ${fmt(minP)} a ${fmt(maxP)}.` : ""}`
+                ? `${totalZona > lista.length ? `Las ${lista.length} farmacias más baratas de las ${totalZona} que lo venden` : `Encontramos ${lista.length} farmacias`} en tu zona.${minP ? ` Los precios van de ${fmt(minP)} a ${fmt(maxP)}.` : ""}`
                 : "No encontramos resultados."}
             </p>
+            {copiaAl && (
+              <p className="text-white/60 text-[12px] mt-2 flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[14px]">update</span>
+                Precios actualizados al {copiaAl.toLocaleDateString("es-PE", { day: "numeric", month: "long" })}, {copiaAl.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })}
+              </p>
+            )}
           </div>
 
           {/* Guardar medicina */}
@@ -437,13 +453,24 @@ export default function Resultados({ query, go, activePersona, loc, variante: pr
           {!loading && buscado && lista.length === 0 && servicioError && (
             <div className="flex flex-col items-center justify-center py-24 text-on-surface-variant text-center">
               <span className="material-symbols-outlined text-5xl text-error mb-4">cloud_off</span>
-              <p className="text-body-md mb-2 font-semibold text-on-surface">El servicio oficial DIGEMID no está respondiendo</p>
-              <p className="text-body-sm mb-5 max-w-sm">Los precios vienen en vivo de DIGEMID/MINSA y ahora mismo su servidor está lento o caído. No es un problema de tu búsqueda. Intenta de nuevo en unos minutos.</p>
+              <p className="text-body-md mb-2 font-semibold text-on-surface">No pudimos cargar los precios</p>
+              <p className="text-body-sm mb-5 max-w-sm">Es un problema nuestro, no de tu búsqueda. Revisa tu conexión e intenta de nuevo en unos minutos.</p>
               <button onClick={() => buscar()} className="px-8 py-3 bg-primary text-white font-bold rounded-full flex items-center gap-2"><span className="material-symbols-outlined text-[20px]">refresh</span> Reintentar</button>
             </div>
           )}
 
-          {!loading && buscado && lista.length === 0 && !servicioError && (
+          {/* Fuera de Lima y Callao todavía no tenemos la copia de precios: decirlo, porque
+              "sin resultados" se lee como que la medicina no existe. */}
+          {!loading && buscado && lista.length === 0 && !servicioError && sinCobertura && (
+            <div className="flex flex-col items-center justify-center py-24 text-on-surface-variant text-center">
+              <span className="material-symbols-outlined text-5xl text-outline mb-4">travel_explore</span>
+              <p className="text-body-md mb-2 font-semibold text-on-surface">Todavía no cubrimos {zonaTxt}</p>
+              <p className="text-body-sm mb-5 max-w-sm">Por ahora comparamos precios en Lima y Callao. Estamos sumando más regiones.</p>
+              <button onClick={() => go("home")} className="px-8 py-3 bg-primary text-white font-bold rounded-full">Buscar en Lima</button>
+            </div>
+          )}
+
+          {!loading && buscado && lista.length === 0 && !servicioError && !sinCobertura && (
             <div className="flex flex-col items-center justify-center py-24 text-on-surface-variant text-center">
               <span className="material-symbols-outlined text-5xl text-outline mb-4">search_off</span>
               <p className="text-body-md mb-4">No encontramos resultados para "{tituloBusqueda}"{geoPos || maxPrecio || tipoFiltro !== "todos" ? " con esos filtros" : ` en ${zonaTxt}`}.</p>

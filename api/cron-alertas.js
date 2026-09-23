@@ -128,20 +128,33 @@ module.exports = async function handler(req, res) {
       const email = alerta.usuarios?.email;
       if (!email) continue;
 
-      const digemidRes = await fetch("https://ms-opm.minsa.gob.pe/msopmcovid/preciovista/ciudadano", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Origin": "https://opm-digemid.minsa.gob.pe", "Referer": "https://opm-digemid.minsa.gob.pe/" },
-        body: JSON.stringify({ filtro: { codigoProducto: alerta.grupo, codigoDepartamento: 15, codigoProvincia: 1501, codigoUbigeo: null, codTipoEstablecimiento: null, catEstablecimiento: null, codGrupoFF: alerta.cod_grupo_ff, concent: alerta.concent, tamanio: 10, pagina: 1, tokenGoogle: "token", nombreProducto: null } }),
-      });
-      const digemidData = await digemidRes.json();
-      if (digemidData?.codigo !== "00" || !digemidData?.data?.length) continue;
+      // Los precios salen de la copia diaria en Supabase, no de DIGEMID en vivo: DIGEMID
+      // bloquea por ASN a los servidores de Vercel, así que esta llamada siempre fallaba y
+      // el `continue` de abajo hacía que ninguna alerta se disparara nunca.
+      const { data: med } = await supabase
+        .from("medicamentos")
+        .select("id")
+        .eq("grupo", String(alerta.grupo))
+        .eq("cod_grupo_ff", String(alerta.cod_grupo_ff))
+        .eq("concentracion", alerta.concent || "")
+        .maybeSingle();
+      if (!med) continue;
 
-      const precios = digemidData.data.map(r => r.precio2 || r.precio1 || r.precio3).filter(p => p > 0);
-      if (!precios.length) continue;
-      const precioMinimo = Math.min(...precios);
+      let consulta = supabase
+        .from("precios")
+        .select("precio, distrito, fecha_digemid, farmacias!inner(nombre, direccion)")
+        .eq("medicamento_id", med.id)
+        .gt("precio", 0)
+        .order("precio", { ascending: true })
+        .limit(1);
+      if (alerta.distrito) consulta = consulta.eq("distrito", alerta.distrito);
+
+      const { data: masBarato } = await consulta;
+      const mejor = masBarato?.[0];
+      if (!mejor) continue;
+
+      const precioMinimo = Number(mejor.precio);
       if (precioMinimo > parseFloat(alerta.precio_objetivo)) continue;
-
-      const mejor = digemidData.data.find(r => (r.precio2 || r.precio1 || r.precio3) === precioMinimo);
 
       const emailRes = await fetch("https://api.resend.com/emails", {
         method: "POST",
@@ -150,7 +163,7 @@ module.exports = async function handler(req, res) {
           from: "MediSinas <alertas@medisinas.com>",
           to: [email],
           subject: `🔔 ${alerta.nombre_producto} ${alerta.concent} bajó a S/ ${precioMinimo.toFixed(2)}`,
-          html: buildEmail({ nombre: alerta.usuarios?.nombre, nombreProducto: alerta.nombre_producto, concent: alerta.concent, precioMinimo, precioObjetivo: alerta.precio_objetivo, farmacia: mejor?.nombreComercial || '', direccion: mejor?.direccion || '', distrito: mejor?.distrito || alerta.distrito || '', fecha: mejor?.fecha?.split(' ')[0] || null }),
+          html: buildEmail({ nombre: alerta.usuarios?.nombre, nombreProducto: alerta.nombre_producto, concent: alerta.concent, precioMinimo, precioObjetivo: alerta.precio_objetivo, farmacia: mejor.farmacias?.nombre || '', direccion: mejor.farmacias?.direccion || '', distrito: mejor.distrito || alerta.distrito || '', fecha: mejor.fecha_digemid?.split(' ')[0] || null }),
         }),
       });
 

@@ -1,3 +1,10 @@
+// Puente hacia DIGEMID. YA NO ESTÁ EN USO y no funciona desde aquí.
+//
+// Desde el 23/09/2026 la web lee la copia diaria que deja scripts/ingesta-digemid.mjs en
+// Supabase (ver src/digemidApi.js). DIGEMID está detrás de Cloudflare y bloquea por ASN los
+// rangos de Vercel y de Supabase: desde producción responde 1005 "Access denied" y desde una
+// conexión peruana doméstica responde bien. Se queda en el repo por si algún día levantan el
+// bloqueo, pero nada lo llama.
 export const config = { maxDuration: 30 };
 
 export default async function handler(req, res) {
