@@ -1,13 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#3c51c2"/>
-      <stop offset="0.5" stop-color="#8135c5"/>
-      <stop offset="1" stop-color="#566bdc"/>
-    </linearGradient>
-  </defs>
-  <rect width="64" height="64" rx="16" fill="url(#g)"/>
-  <text x="32" y="34" text-anchor="middle" dominant-baseline="central"
-        font-family="-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
-        font-size="36" font-weight="700" fill="#ffffff">Sí</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="MediSinas">
+  <!-- A 16 px lo único que se lee es la silueta: una cápsula partida en dos.
+       La mitad clara y la oscura son la idea del producto, comparar el mismo
+       medicamento a dos precios. Sin degradados ni texto, que a ese tamaño
+       se vuelven una mancha. -->
+  <rect width="64" height="64" rx="14" fill="#3c51c2"/>
+  <g transform="rotate(-45 32 32)">
+    <clipPath id="capsula">
+      <rect x="20" y="9" width="24" height="46" rx="12"/>
+    </clipPath>
+    <g clip-path="url(#capsula)">
+      <rect x="20" y="9" width="24" height="23" fill="#ffffff"/>
+      <rect x="20" y="32" width="24" height="23" fill="#bac3ff"/>
+    </g>
+    <rect x="20" y="9" width="24" height="46" rx="12" fill="none" stroke="#3c51c2" stroke-width="2.5"/>
+    <rect x="20" y="30.5" width="24" height="3" fill="#3c51c2"/>
+  </g>
 </svg>
