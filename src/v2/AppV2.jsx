@@ -77,10 +77,13 @@ export default function AppV2() {
         target="_blank"
         rel="noreferrer"
         aria-label="Escríbenos por WhatsApp"
-        className="fixed right-4 bottom-4 z-50 inline-flex items-center gap-2 px-5 py-3 rounded-full bg-primary text-white text-body-sm font-semibold shadow-lg hover:bg-primary-container transition-colors active:scale-95"
+        className="fixed right-4 bottom-4 z-50 inline-flex items-center gap-2 px-5 py-3 rounded-full bg-[#25D366] text-white text-body-sm font-semibold shadow-lg hover:bg-[#1da851] transition-colors active:scale-95"
       >
-        <span className="material-symbols-outlined text-[20px]">chat</span>
-        <span className="hidden sm:inline">Escríbenos</span>
+        {/* El logo de WhatsApp, no un ícono de chat genérico: se reconoce sin leer. */}
+        <svg viewBox="0 0 24 24" aria-hidden="true" className="w-5 h-5 fill-current">
+          <path d="M12.04 2c-5.46 0-9.9 4.44-9.9 9.9 0 1.75.46 3.45 1.32 4.95L2 22l5.3-1.38a9.87 9.87 0 0 0 4.73 1.2h.01c5.46 0 9.9-4.44 9.9-9.9 0-2.64-1.03-5.13-2.9-7A9.82 9.82 0 0 0 12.04 2m0 1.8c2.16 0 4.2.84 5.73 2.37a8.06 8.06 0 0 1 2.37 5.73c0 4.47-3.63 8.1-8.1 8.1a8.1 8.1 0 0 1-4.13-1.13l-.3-.18-3.06.8.82-2.99-.2-.31a8.05 8.05 0 0 1-1.23-4.3c0-4.46 3.64-8.09 8.1-8.09m-3.1 4.3c-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2s.86 2.32.98 2.48c.12.16 1.7 2.6 4.12 3.54 2.02.78 2.43.63 2.87.59.44-.04 1.42-.58 1.62-1.14.2-.56.2-1.04.14-1.14-.06-.1-.22-.16-.46-.28-.24-.12-1.42-.7-1.64-.78-.22-.08-.38-.12-.54.12-.16.24-.62.78-.76.94-.14.16-.28.18-.52.06-.24-.12-1.01-.37-1.93-1.19-.71-.64-1.19-1.42-1.33-1.66-.14-.24-.02-.37.1-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.19-.46-.39-.4-.54-.41h-.46Z" />
+        </svg>
+        <span className="hidden sm:inline">Consultar por WhatsApp</span>
       </a>
     </div>
   );
