@@ -21,3 +21,6 @@ src/version.js
 
 # Copia diaria de DIGEMID (scripts/ingesta-digemid.mjs)
 .env.ingesta
+
+# Copia vieja del repo que quedó dentro de la carpeta; no debe versionarse.
+/medisinas/
